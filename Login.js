@@ -29,7 +29,8 @@ export default class Login extends React.Component {
         super();
         this.state = {
             username: '',
-            password: ''
+            password: '',
+            loggingIn: false
         };
     }
 
@@ -42,15 +43,33 @@ export default class Login extends React.Component {
                             <FormLabel>Name</FormLabel>
                         </Fade>
                     </View>
-                    <FormInput placeholder={"Name"} value={this.state.username} underlineColorAndroid="#000000" onChangeText={(value) => {this.setState({ "username": value })}} />
+                    <FormInput 
+                        placeholder={"Name"} 
+                        value={this.state.username}
+                        underlineColorAndroid="#000000" 
+                        returnKeyType = {"next"} 
+                        blurOnSubmit={false} 
+                        onChangeText={(value) => {this.setState({ "username": value })}}
+                        onSubmitEditing={() => { this.refs._passwordInput.focus(); this.props.scrollTo(200); }} />
                     <View>
                         <Fade visible={this.state.password.length > 0} duration={100}>
                             <FormLabel>Password</FormLabel>
                         </Fade>
                     </View>
-                    <FormInput placeholder={"Password"} value={this.state.password} underlineColorAndroid="#000000" onChangeText={(value) => {this.setState({ "password": value })}} secureTextEntry={true} />
+                    <FormInput 
+                        ref='_passwordInput' 
+                        placeholder={"Password"} 
+                        value={this.state.password} 
+                        underlineColorAndroid="#000000" 
+                        secureTextEntry={true}
+                        onChangeText={(value) => {this.setState({ "password": value })}} />
                     <Button
-                        title='Login' />
+                        title='Login' 
+                        loading={this.state.loggingIn} 
+                        disabled={!(this.state.username.length > 0 && this.state.password.length >= 8) || this.state.loggingIn}
+                        rounded={true} 
+                        backgroundColor={'lime'} 
+                        containerViewStyle={{ marginTop: 20 }} />
                 </View>
             );
     }
