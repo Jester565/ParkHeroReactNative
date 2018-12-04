@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, Image, TextInput } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider } from 'react-native-elements';
 import ParallaxScrollView from 'react-native-parallax-scroll-view';
-import Fade from './utils/Fade';
+import Fade from '../utils/Fade';
 
 const styles = StyleSheet.create({
     container: {

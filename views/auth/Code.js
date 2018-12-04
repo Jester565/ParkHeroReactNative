@@ -3,7 +3,7 @@ import { StyleSheet, Image, TextInput } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Icon, Text } from 'react-native-elements';
 import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import { createAnimatableComponent, View } from 'react-native-animatable';
-import Fade from './utils/Fade';
+import Fade from '../utils/Fade';
 
 const styles = StyleSheet.create({
     container: {

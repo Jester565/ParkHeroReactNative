@@ -86,7 +86,7 @@ export default class Auth extends React.Component {
                     this.scrollHeight = event.nativeEvent.contentOffset.y;
                 }}
                 renderBackground={() => (
-                    <Image style={{"width": "100%", "height": 350}} source={require('./assets/castle.jpg')}></Image>
+                    <Image style={{"width": "100%", "height": 350}} source={require('../../assets/castle.jpg')}></Image>
                 )}
                 renderForeground={() => (
                     <View style={{width: "100%", height: 300}}>

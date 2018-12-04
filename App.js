@@ -1,8 +1,8 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage } from 'react-native-elements';
-import Auth from './Auth';
-import SignUp from './SignUp';
+import Auth from './views/auth/Auth';
+import SignUp from './views/auth/SignUp';
 import Matterhorn from './Matterhorn';
 import { createStackNavigator, createAppContainer } from 'react-navigation';
 
@@ -19,7 +19,6 @@ const styles = StyleSheet.create({
 });
 
 const navigator = createStackNavigator({
-  Matterhorn: {screen: Matterhorn},
   Auth: {screen: Auth},
   SignUp: {screen: SignUp}
 });

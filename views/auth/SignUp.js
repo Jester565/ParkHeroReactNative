@@ -2,7 +2,7 @@ import React from 'react';
 import { StyleSheet, Text, View, TextInput, BackHandler } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage, Button } from 'react-native-elements';
 import Code from './Code';
-import Fade from './utils/Fade';
+import Fade from '../utils/Fade';
 import * as Animatable from 'react-native-animatable';
 
 const styles = StyleSheet.create({
