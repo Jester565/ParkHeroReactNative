@@ -41,7 +41,7 @@ export default class Code extends React.Component {
         };
     }
 
-    onSubmit = async() => {
+    onSubmitPressed = async() => {
         this.setState({
             submitting: true
         });
@@ -65,6 +65,25 @@ export default class Code extends React.Component {
                 this.props.onSignIn(true);
             } catch (err) {
                 console.error("ForgotPwdErr SubmitErr: ", err);
+            }
+            this.setState({ submitting: false });
+        }
+    }
+
+    onResendPressed = async() => {
+        if (this.props.config.mode == "SIGNUP") {
+            this.setState({ submitting: true });
+            try {
+                await Auth.resendSignUp(this.props.config.username);
+            } catch (err) {
+                console.error("CodeSignUp ResendErr: ", err);
+            }
+            this.setState({ submitting: false });
+        } else if (this.props.config.mode == "FORGOTPWD") {
+            try {
+                await Auth.forgotPassword(this.props.config.username);
+            } catch (err) {
+                console.error("CodeForgotPassword ResendErr: ", err);
             }
             this.setState({ submitting: false });
         }
@@ -179,7 +198,18 @@ export default class Code extends React.Component {
                             rounded={true} 
                             backgroundColor={'lime'} 
                             containerViewStyle={{ marginTop: 20 }} 
-                            onPress={this.onSubmit} />
+                            onPress={this.onSubmitPressed} />
+                    </View>
+
+                    <View animation="bounceInUp" iterationCount={1} duration={1500} useNativeDriver>
+                        <Button
+                            title='Resend' 
+                            loading={this.state.submitting} 
+                            disabled={this.state.submitting}
+                            rounded={true} 
+                            backgroundColor={'blue'} 
+                            containerViewStyle={{ marginTop: 20 }} 
+                            onPress={this.onResendPressed} />
                     </View>
                 </View>
             );

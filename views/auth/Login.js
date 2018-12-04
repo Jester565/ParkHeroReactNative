@@ -150,7 +150,7 @@ export default class Login extends React.Component {
         );
         if (this.state.showCode) {
             return <Code 
-                config={{ mode: 'FOROTPWD', username: this.state.username, password: this.state.password }} 
+                config={{ mode: 'SIGNUP', username: this.state.username, password: this.state.password }} 
                 scrollTo={this.props.scrollTo}
                 onSignIn={this.props.onSignIn} />
         } else if (this.state.showForgotPassword) {

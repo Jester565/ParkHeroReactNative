@@ -136,7 +136,6 @@ export default class Authenticator extends React.Component {
     }
 
     render() {
-        var googleButton = <Button color="black" buttonStyle={styles.optionButton} title='Google' onClick={this.onGooglePressed} />
         return (
             <ParallaxScrollView
                 ref='_scrollView'
@@ -179,7 +178,7 @@ export default class Authenticator extends React.Component {
                             }
                             {
                                 (this.state.page != 'google')?
-                                    googleButton: null
+                                    <Button color="black" buttonStyle={styles.optionButton} title='Google' onPress={this.onGooglePressed} />: null
                             }
                         </View>
                     </View>
