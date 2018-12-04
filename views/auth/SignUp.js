@@ -4,6 +4,10 @@ import { FormLabel, FormInput, FormValidationMessage, Button } from 'react-nativ
 import Code from './Code';
 import Fade from '../utils/Fade';
 import * as Animatable from 'react-native-animatable';
+import AwsExports from '../../AwsExports';
+import Amplify, { Auth } from 'aws-amplify';
+
+Amplify.configure(AwsExports);
 
 const styles = StyleSheet.create({
     container: {
@@ -27,7 +31,7 @@ export default class SignUp extends React.Component {
             invalidEmailMessage: null,
             invalidPasswordMessage: null,
             signingUp: false,
-            gettingCode: false
+            showCode: false
         };
     }
 
@@ -54,14 +58,51 @@ export default class SignUp extends React.Component {
     }
 
     handleBackPress = () => {
-        if (this.state.gettingCode) {
+        if (this.state.showCode) {
             this.setState({
-                gettingCode: false,
+                showCode: false,
                 signingUp: false
             });
             return true;
         }
         return false;
+    }
+
+    onSignUpPressed = async() => {
+        this.setState({
+            signingUp: true
+        });
+        try {
+            var attributes = {
+                email: this.state.email
+            };
+            var result = await Auth.signUp({
+                username: this.state.username,
+                password: this.state.password,
+                attributes: attributes
+            });
+            if (result.userConfirmed) {
+                this.props.onSignIn();
+            } else {
+                this.openCode();
+            }
+            this.setState({loading: false});
+        } catch(err) { 
+            console.error("SignUpErr: ", err);
+            this.setState({loading: false, errorMsg: err.message});
+        }
+    }
+
+    openCode = () => {
+        var transitionLength = 500;
+        this.refs._name.bounceOut(transitionLength);
+        this.refs._email.bounceOutDown(transitionLength);
+        this.refs._password.bounceOutUp(transitionLength);
+        this.refs._confirmPassword.bounceOutLeft(transitionLength).then(() => {
+            this.setState({
+                showCode: true
+            });
+        });
     }
 
     setEmail = (email) => {
@@ -87,33 +128,25 @@ export default class SignUp extends React.Component {
         });
     }
 
-    onSignUpPressed = () => {
-        this.openCode();
-    }
-
-    openCode = () => {
-        var transitionLength = 500;
-        this.refs._name.bounceOut(transitionLength);
-        this.refs._email.bounceOutDown(transitionLength);
-        this.refs._password.bounceOutUp(transitionLength);
-        this.refs._confirmPassword.bounceOutLeft(transitionLength).then(() => {
-            this.setState({
-                gettingCode: true
-            });
-        });
-    }
-
     render() {
         const { classes } = this.props;
 
-        var signUpEnabled = (this.state.username.length > 0 && this.state.email.length >0 && this.state.invalidEmailMessage == null && this.state.password.length > 0 && this.state.invalidPasswordMessage == null && this.state.password == this.state.confirmPassword);
+        var signUpEnabled = (this.state.username.length > 0 && this.state.email.length >0 && 
+            this.state.invalidEmailMessage == null && this.state.password.length > 0 && 
+            this.state.invalidPasswordMessage == null && this.state.password == this.state.confirmPassword &&
+            /^[a-z0-9]+$/i.test(this.state.username));
         var renderSignUp = (
             <View>
                 <Animatable.View ref='_name' useNativeDriver>
                     <View>
-                        <Fade visible={this.state.username.length >0}>
-                            <FormLabel>Name</FormLabel>
+                        <Fade visible={this.state.username.length > 0 && /^[a-z0-9]+$/i.test(this.state.username)}>
+                            <FormLabel>Email</FormLabel>
                         </Fade>
+                        <View style={{position: 'absolute', top: 0, left: 0}}>
+                            <Fade visible={this.state.username.length > 0 && !(/^[a-z0-9]+$/i.test(this.state.username))}>
+                                <FormLabel labelStyle={{ color: "red" }}>Username must be alphanumeric</FormLabel>
+                            </Fade>
+                        </View>
                     </View>
                     <FormInput
                         ref='_nameInput' 
@@ -195,6 +228,10 @@ export default class SignUp extends React.Component {
                         onPress={this.onSignUpPressed} />
                 </Animatable.View>
             </View>);
-        return (!this.state.gettingCode)? renderSignUp: <Code />;
+        return (!this.state.showCode)? renderSignUp: 
+            <Code 
+                config={{ mode: 'SIGNUP', username: this.state.username, password: this.state.password }} 
+                scrollTo={this.props.scrollTo}
+                onSignIn={this.props.onSignIn} />;
     }
 };
