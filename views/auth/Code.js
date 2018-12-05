@@ -1,9 +1,10 @@
 import React from 'react';
-import { StyleSheet, Image, TextInput } from 'react-native';
+import { StyleSheet, Image, TextInput, View } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Icon, Text } from 'react-native-elements';
 import ParallaxScrollView from 'react-native-parallax-scroll-view';
-import { createAnimatableComponent, View } from 'react-native-animatable';
+import * as Animatable from 'react-native-animatable';
 import Fade from '../utils/Fade';
+import Toast from 'react-native-root-toast';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth } from 'aws-amplify';
 
@@ -53,21 +54,24 @@ export default class Code extends React.Component {
                 await Auth.signIn(this.props.config.username, pwd);
                 this.props.onSignIn(true);
             } catch (err) {
-                console.error("Code SignUpErr: ", err);       
+                this.refs._submit.shake(1000);
+                Toast.show(err.message);
+                console.log("Code SignUpErr: ", err);       
             }
-            this.setState({ submitting: false });
         } 
         //ENTERING CODE TO RESET PASSWORD
         else if (this.props.config.mode == "FORGOTPWD") {
             try {
                 await Auth.forgotPasswordSubmit(this.props.config.username, this.state.code, pwd)
-                var user = await Auth.signIn(this.props.config.username, pwd)
+                await Auth.signIn(this.props.config.username, pwd)
                 this.props.onSignIn(true);
             } catch (err) {
-                console.error("ForgotPwdErr SubmitErr: ", err);
+                this.refs._submit.shake(1000);
+                Toast.show(err.message);
+                console.log("ForgotPwdErr SubmitErr: ", err);
             }
-            this.setState({ submitting: false });
         }
+        this.setState({ submitting: false });
     }
 
     onResendPressed = async() => {
@@ -75,6 +79,7 @@ export default class Code extends React.Component {
             this.setState({ submitting: true });
             try {
                 await Auth.resendSignUp(this.props.config.username);
+                Toast.show('Code Resent');
             } catch (err) {
                 console.error("CodeSignUp ResendErr: ", err);
             }
@@ -82,6 +87,7 @@ export default class Code extends React.Component {
         } else if (this.props.config.mode == "FORGOTPWD") {
             try {
                 await Auth.forgotPassword(this.props.config.username);
+                Toast.show('Code Resent');
             } catch (err) {
                 console.error("CodeForgotPassword ResendErr: ", err);
             }
@@ -105,24 +111,25 @@ export default class Code extends React.Component {
     }
 
     render() {
+        var bounceInDuration = 1500;
         const { classes } = this.props;
         return (
                 <View>
-                    <View animation="bounceIn" iterationCount={1} duration={1500} style={{ justifyContent:'center', alignItems: 'center', width: "100%", height: 110 }} useNativeDriver>
+                    <Animatable.View animation="bounceIn" iterationCount={1} duration={bounceInDuration} style={{ justifyContent:'center', alignItems: 'center', width: "100%", height: 110 }} useNativeDriver>
                         <Icon
                             name='email'
                             size={100}
                             color='#000000' />
-                    </View>
-                    <View animation="bounceInLeft" iterationCount={1} duration={1500} style={{ width: "100%", height: 100, flex: 1, justifyContent: 'center', alignItems: 'center', marginBottom: 30}} useNativeDriver>
+                    </Animatable.View>
+                    <Animatable.View animation="bounceInLeft" iterationCount={1} duration={bounceInDuration} style={{ width: "100%", height: 100, flex: 1, justifyContent: 'center', alignItems: 'center', marginBottom: 30}} useNativeDriver>
                         <Text h4>Check Your Email</Text>
-                    </View>
-                    <View>
-                        <Fade visible={this.state.code.length > 0} duration={100}>
-                            <FormLabel>Code</FormLabel>
-                        </Fade>
-                    </View>
-                    <View animation="bounceInRight" iterationCount={1} duration={1500} useNativeDriver>
+                    </Animatable.View>
+                    <Animatable.View animation="bounceInRight" iterationCount={1} duration={bounceInDuration} useNativeDriver>
+                        <View>
+                            <Fade visible={this.state.code.length > 0}>
+                                <FormLabel>Code</FormLabel>
+                            </Fade>
+                        </View>
                         <FormInput 
                             placeholder={"Code"} 
                             value={this.state.code}
@@ -135,12 +142,12 @@ export default class Code extends React.Component {
                                     this.refs._passwordInput.focus(); this.props.scrollTo(250);
                                 }
                             }} />
-                    </View>
+                    </Animatable.View>
                     {
                         //Create a new password for forgot password flow
                         (this.props.config.password == null)? (
                         <View>
-                            <View ref='_password' useNativeDriver>
+                            <Animatable.View ref='_password' animation="bounceInLeft" iterationCount={1} duration={bounceInDuration} useNativeDriver>
                                 <View>
                                     <Fade visible={this.state.password.length > 0 && this.state.invalidPasswordMessage == null}>
                                         <FormLabel>Password</FormLabel>
@@ -151,7 +158,7 @@ export default class Code extends React.Component {
                                         </Fade>
                                     </View>
                                 </View>
-                                <View animation="bounceInRight" iterationCount={1} duration={1500} useNativeDriver>
+                                <View>
                                     <FormInput 
                                         ref='_passwordInput'
                                         placeholder={"Password"} 
@@ -163,8 +170,8 @@ export default class Code extends React.Component {
                                         onChangeText={this.setPassword} 
                                         onSubmitEditing={() => { this.refs._confirmPasswordInput.focus(); this.props.scrollTo(300); }} />
                                 </View>
-                            </View>
-                            <View ref='_confirmPassword' useNativeDriver>
+                            </Animatable.View>
+                            <Animatable.View ref='_confirmPassword' animation="bounceInRight" iterationCount={1} duration={bounceInDuration} useNativeDriver>
                                 <Fade visible={this.state.confirmPassword.length > 0 && this.state.password == this.state.confirmPassword}>
                                     <FormLabel>Confirm Password</FormLabel>
                                 </Fade>
@@ -173,7 +180,7 @@ export default class Code extends React.Component {
                                         <FormLabel labelStyle={{ color: "red" }}>Passwords don't match</FormLabel>
                                     </Fade>
                                 </View>
-                                <View animation="bounceInRight" iterationCount={1} duration={1500} useNativeDriver>
+                                <View>
                                     <FormInput 
                                         ref='_confirmPasswordInput'
                                         placeholder={"Confirm Password"} 
@@ -183,11 +190,11 @@ export default class Code extends React.Component {
                                         underlineColorAndroid={(this.state.confirmPassword.length > 0 && this.state.password != this.state.confirmPassword)? "#FF0000": "#000000"} 
                                         onChangeText={(value) => {this.setState({ "confirmPassword": value })}} />
                                 </View>
-                            </View>
+                            </Animatable.View>
                         </View>): null
                     }
                     
-                    <View animation="bounceInUp" iterationCount={1} duration={1500} useNativeDriver>
+                    <View ref="_submit" animation="bounceInUp" iterationCount={1} duration={bounceInDuration} useNativeDriver>
                         <Button
                             title='Submit' 
                             loading={this.state.submitting} 
@@ -201,7 +208,7 @@ export default class Code extends React.Component {
                             onPress={this.onSubmitPressed} />
                     </View>
 
-                    <View animation="bounceInUp" iterationCount={1} duration={1500} useNativeDriver>
+                    <View animation="bounceInUp" iterationCount={1} duration={bounceInDuration} useNativeDriver>
                         <Button
                             title='Resend' 
                             loading={this.state.submitting} 

@@ -3,9 +3,11 @@ import { StyleSheet, Text, View, Image, TextInput, BackHandler } from 'react-nat
 import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider } from 'react-native-elements';
 import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import Fade from '../utils/Fade';
+import * as Animatable from 'react-native-animatable';
 import ForgotPassword from './ForgotPassword';
 import AwsExports from '../../AwsExports';
 import Code from './Code';
+import Toast from 'react-native-root-toast';
 import Amplify, { Auth } from 'aws-amplify';
 
 Amplify.configure(AwsExports);
@@ -68,13 +70,6 @@ export default class Login extends React.Component {
         return false;
     }
 
-    openCode = () => {
-        this.setState({ 
-            showCode: true,
-            loggingIn: false
-        });
-    }
-
     onLoginPressed = async() => {
         this.setState({
             loggingIn: true
@@ -87,65 +82,91 @@ export default class Login extends React.Component {
             if (err.code == "UserNotConfirmedException") {
                 this.openCode();
             } else {
+                Toast.show(err.message);
+                this.refs._login.shake(1000);
                 this.setState({
-                    errorMsg: err.message,
                     loggingIn: false
                 });
             }
         }
     }
 
+    bounceOut = () => {
+        var bounceOutDuration = 500;
+        this.refs._name.bounceOutUp(bounceOutDuration);
+        this.refs._password.bounceOutLeft(bounceOutDuration);
+        this.refs._login.bounceOutRight(bounceOutDuration);
+        return this.refs._forgotPassword.bounceOutDown(bounceOutDuration);
+    }
+
+    openCode = () => {
+        this.bounceOut().then(() => {
+            this.setState({ 
+                showCode: true,
+                loggingIn: false
+            });
+        });
+    }
+
     onForgotPasswordPressed = () => {
-        this.setState({
-            showForgotPassword: true
+        this.bounceOut().then(() => {
+            this.setState({ 
+                showForgotPassword: true
+            });
         });
     }
 
     render() {
-        const { classes } = this.props;
         var renderLogin = (
             <View>
-                <View>
-                    <Fade visible={this.state.username.length > 0} duration={100}>
-                        <FormLabel>Name</FormLabel>
-                    </Fade>
-                </View>
-                <FormInput 
-                    placeholder={"Name"} 
-                    value={this.state.username}
-                    underlineColorAndroid="#000000" 
-                    returnKeyType = {"next"} 
-                    blurOnSubmit={false} 
-                    onChangeText={(value) => {this.setState({ "username": value })}}
-                    onSubmitEditing={() => { this.refs._passwordInput.focus(); this.props.scrollTo(200); }} />
-                <View>
-                    <Fade visible={this.state.password.length > 0} duration={100}>
-                        <FormLabel>Password</FormLabel>
-                    </Fade>
-                </View>
-                <FormInput 
-                    ref='_passwordInput' 
-                    placeholder={"Password"} 
-                    value={this.state.password} 
-                    underlineColorAndroid="#000000" 
-                    secureTextEntry={true}
-                    onChangeText={(value) => {this.setState({ "password": value })}} />
-                <Button
-                    title='Login' 
-                    loading={this.state.loggingIn} 
-                    disabled={!(this.state.username.length > 0 && this.state.password.length >= 8) || this.state.loggingIn}
-                    rounded={true} 
-                    backgroundColor={'lime'} 
-                    containerViewStyle={{ marginTop: 20 }}
-                    onPress={this.onLoginPressed} />
-                <Button
-                    title='Forgot Password?' 
-                    disabled={this.state.loggingIn}
-                    rounded={true} 
-                    backgroundColor={'blue'} 
-                    containerViewStyle={{ marginTop: 20 }}
-                    onPress={this.onForgotPasswordPressed} />
-                
+                <Animatable.View ref="_name">
+                    <View>
+                        <Fade visible={this.state.username.length > 0}>
+                            <FormLabel>Name</FormLabel>
+                        </Fade>
+                    </View>
+                    <FormInput 
+                        placeholder={"Name"} 
+                        value={this.state.username}
+                        underlineColorAndroid="#000000" 
+                        returnKeyType = {"next"} 
+                        blurOnSubmit={false} 
+                        onChangeText={(value) => {this.setState({ "username": value })}}
+                        onSubmitEditing={() => { this.refs._passwordInput.focus(); this.props.scrollTo(200); }} />
+                </Animatable.View>
+                <Animatable.View ref="_password">
+                    <View>
+                        <Fade visible={this.state.password.length > 0}>
+                            <FormLabel>Password</FormLabel>
+                        </Fade>
+                    </View>
+                    <FormInput 
+                        ref='_passwordInput' 
+                        placeholder={"Password"} 
+                        value={this.state.password} 
+                        underlineColorAndroid="#000000" 
+                        secureTextEntry={true}
+                        onChangeText={(value) => {this.setState({ "password": value })}} />
+                </Animatable.View>
+                <Animatable.View ref="_login">
+                    <Button
+                        title='Login' 
+                        loading={this.state.loggingIn} 
+                        disabled={!(this.state.username.length > 0 && this.state.password.length >= 8) || this.state.loggingIn}
+                        rounded={true} 
+                        backgroundColor={'lime'} 
+                        containerViewStyle={{ marginTop: 20 }}
+                        onPress={this.onLoginPressed} />
+                </Animatable.View>
+                <Animatable.View ref="_forgotPassword">
+                    <Button
+                        title='Forgot Password?' 
+                        disabled={this.state.loggingIn}
+                        rounded={true} 
+                        backgroundColor={'blue'} 
+                        containerViewStyle={{ marginTop: 20 }}
+                        onPress={this.onForgotPasswordPressed} />
+                </Animatable.View>
             </View>
         );
         if (this.state.showCode) {

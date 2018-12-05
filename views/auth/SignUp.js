@@ -4,6 +4,7 @@ import { FormLabel, FormInput, FormValidationMessage, Button } from 'react-nativ
 import Code from './Code';
 import Fade from '../utils/Fade';
 import * as Animatable from 'react-native-animatable';
+import Toast from 'react-native-root-toast';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth } from 'aws-amplify';
 
@@ -86,19 +87,27 @@ export default class SignUp extends React.Component {
             } else {
                 this.openCode();
             }
-            this.setState({loading: false});
         } catch(err) { 
-            console.error("SignUpErr: ", err);
-            this.setState({loading: false, errorMsg: err.message});
+            if (err.code == 'UsernameExistsException') {
+                Toast.show('Username Already Exists');
+            }
+            console.log("SignUpErr: ", err);
+            this.refs._signUp.shake(1000);
         }
+        this.setState({signingUp: false});
+    }
+
+    bounceOut = () => {
+        var bounceOutDuration = 500;
+        this.refs._name.bounceOut(bounceOutDuration);
+        this.refs._email.bounceOutLeft(bounceOutDuration);
+        this.refs._password.bounceOutRight(bounceOutDuration);
+        this.refs._confirmPassword.bounceOutLeft(bounceOutDuration);
+        return this.refs._signUp.bounceOutDown(bounceOutDuration);
     }
 
     openCode = () => {
-        var transitionLength = 500;
-        this.refs._name.bounceOut(transitionLength);
-        this.refs._email.bounceOutDown(transitionLength);
-        this.refs._password.bounceOutUp(transitionLength);
-        this.refs._confirmPassword.bounceOutLeft(transitionLength).then(() => {
+        this.bounceOut().then(() => {
             this.setState({
                 showCode: true
             });
@@ -130,7 +139,7 @@ export default class SignUp extends React.Component {
 
     render() {
         const { classes } = this.props;
-
+        
         var signUpEnabled = (this.state.username.length > 0 && this.state.email.length >0 && 
             this.state.invalidEmailMessage == null && this.state.password.length > 0 && 
             this.state.invalidPasswordMessage == null && this.state.password == this.state.confirmPassword &&
@@ -218,6 +227,8 @@ export default class SignUp extends React.Component {
                         secureTextEntry={true}
                         underlineColorAndroid={(this.state.confirmPassword.length > 0 && this.state.password != this.state.confirmPassword)? "#FF0000": "#000000"} 
                         onChangeText={(value) => {this.setState({ "confirmPassword": value })}} />
+                </Animatable.View>
+                <Animatable.View ref='_signUp' useNativeDriver>
                     <Button
                         title={(!this.state.signingUp)? 'Sign Up': null} 
                         disabled={!signUpEnabled || this.state.signingUp} 

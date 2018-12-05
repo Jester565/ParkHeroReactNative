@@ -75,6 +75,7 @@ android {
 }
 
 dependencies {
+    compile project(':react-native-fetch-blob')
     compile project(':amazon-cognito-identity-js')
     compile project(':react-native-google-signin')
     compile project(':react-native-gesture-handler')

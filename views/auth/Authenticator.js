@@ -85,11 +85,8 @@ export default class Authenticator extends React.Component {
         console.log("YEEEEEEEEEEEEEET");
         try {
             await GoogleSignin.hasPlayServices();
-            console.log("HERE HERE!");
             var userInfo = await GoogleSignin.signIn();
-            console.log("USERINFO: ", JSON.stringify(userInfo));
             var idToken = userInfo.idToken;
-            console.log("IDTOKEN: ", idToken);
             await Auth.federatedSignIn(
                 "accounts.google.com",
                 { 
@@ -98,7 +95,7 @@ export default class Authenticator extends React.Component {
             );
             this.onSignIn(true);
         } catch (err) {
-            console.error("OnGooglePress Error: ", err);
+            console.log("OnGooglePress Error: ", err);
         }
     }
 
