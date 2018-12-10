@@ -10,6 +10,7 @@ import AwsExports from '../../AwsExports';
 import Amplify, { Auth } from 'aws-amplify';
 import DateTimePicker from 'react-native-modal-datetime-picker';
 import moment from 'moment';
+import RidesParallax from './RidesParallax';
 
 Amplify.configure(AwsExports);
 
@@ -31,16 +32,7 @@ const styles = StyleSheet.create({
     }
 });
 
-const theme = {
-    Button: {
-      titleStyle: {
-        color: 'red',
-      }
-    }  
-  };
-
 const actionBackground = "#3B3F44";
-
 const actionForeground = "#DDDDDD";
 
 export default class RideList extends React.Component {
@@ -874,13 +866,14 @@ export default class RideList extends React.Component {
         </TouchableOpacity>);
     }
 
+    //CANNON
+    refreshRides = () => {
+
+    }
+
     render() {
         var date = this.getDate(this.state.dayOffset);
         var parkSchedules = this.getParkSchedules(this.state.schedules, date);
-        var parkSchedule = null;
-        if (parkSchedules != null) {
-            parkSchedule = parkSchedules[this.state.parkInfoI];
-        }
         var dateTime = this.getDateTime(parkSchedules, date);
         var weather = this.getWeather(this.state.weathers, dateTime);
         var headerHeight = 358;
@@ -890,76 +883,18 @@ export default class RideList extends React.Component {
         }
         return (
         <View style={{ width: "100%", height: "100%" }}>
-            <ParallaxScrollView
-                ref='_scrollView'
-                refreshControl={
-                    <RefreshControl
-                        refreshing={this.state.refreshing}
-                        onRefresh={this.onRefresh}
-                    />
-                }
-                backgroundColor={actionBackground}
-                contentBackgroundColor="#404040"
-                parallaxHeaderHeight={headerHeight}
-                parallaxBackgroundScrollSpeed={30}
-                stickyHeaderHeight={stickyHeaderHeight}
-                fadeOutForeground={false}
-                renderFixedHeader={() => {
+            <RidesParallax
+                parkSchedules={parkSchedules}
+                weather={weather}
+                refreshing={this.state.refreshing}
+                renderHeader={() => {
                     if (this.state.selectedRides == null) {
                         return this.renderHeader(parkSchedules, date, dateTime);
                     } else {
                         return this.renderFilterHeader();
                     }
-                }} 
-                renderBackground={() => (<View>
-                        <View style={{ width: "100%", height: 350, marginTop: 58 }} >
-                            {
-                                (this.state.parkInfoI == 0)?
-                                    (<View>
-                                        <Image style={{ width: "100%", height: "100%" }} source={require('../../assets/castle.jpg')} />
-                                        <Image style={{ position: "absolute", left: 0, bottom: 0, width: "100%", height: "100%" }} source={require('../../assets/castleFront.png')} />
-                                    </View>): null
-                            }
-                            {
-                                (this.state.parkInfoI == 1)?
-                                    (<View>
-                                        <Image style={{ width: "100%", height: "100%" }} source={require('../../assets/pier.jpg')} />
-                                        <Image style={{ position: "absolute", left: 0, bottom: 0, width: "100%", height: "100%" }} source={require('../../assets/pierFront.png')} />
-                                    </View>): null
-                            }
-                        </View>
-                    </View>
-                )}
-                renderForeground={() => (
-                    <View style={{ width: "100%", height: 370 }}>
-                        <View style={{ width: "100%", height: 370, flex: 1, justifyContent: 'center', alignContent: 'center' }}>
-                            <View>{ this.renderParkInfo(parkSchedule) }</View>
-                        </View>
-                        <View style={{ position: "absolute", width: "100%", left: 0, bottom: 0 }}>
-                            { this.renderScheduleBar(parkSchedules, weather) }
-                        </View>
-                        { (this.state.parkInfoI > 0)?
-                            (<View style={{ position: 'absolute', left: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                                <Icon
-                                    name="navigate-before"
-                                    color={actionForeground}
-                                    size={40}
-                                    onPress={() => { this.setParkInfoI(this.state.parkInfoI - 1) }}
-                                    containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
-                            </View>): null
-                        }
-                        { (this.state.parkInfoI < this.state.numParks - 1)?
-                            (<View style={{ position: 'absolute', right: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                                <Icon
-                                    name="navigate-next"
-                                    color={actionForeground}
-                                    size={40}
-                                    onPress={() => { this.setParkInfoI(this.state.parkInfoI + 1) }}
-                                    containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
-                            </View>): null
-                        }
-                    </View>
-                )}>
+                }}
+                onRefresh={this.refreshRides}>
                     <ImageCacheProvider>
                         <FlatList
                             data={[
@@ -984,7 +919,7 @@ export default class RideList extends React.Component {
                         height: (this.state.showFilters)? 300: 0,
                         backgroundColor: actionBackground
                     }}></View>
-            </ParallaxScrollView>
+            </RidesParallax>
             { (this.state.showFilters)?
                 (<View style={{
                     position: "absolute",
