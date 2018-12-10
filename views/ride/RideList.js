@@ -11,6 +11,7 @@ import Amplify, { Auth } from 'aws-amplify';
 import DateTimePicker from 'react-native-modal-datetime-picker';
 import moment from 'moment';
 import RidesParallax from './RidesParallax';
+import RidesHeader from './RidesHeader';
 
 Amplify.configure(AwsExports);
 
@@ -495,79 +496,6 @@ export default class RideList extends React.Component {
         </View>);
     }
 
-    renderHeader = (parkSchedules, date, dateTime) => {
-        var clearIcon = (this.state.rideQuery != null && this.state.rideQuery.length > 0)? { name: 'close', style: { width: 30, height: 30, marginLeft: 3, marginTop: -7, fontSize: 30, alignSelf: "center" } }: null;
-        return (
-        <View style={{ flex: 1, flexDirection: "column" }}>
-            <View style={{ width: "100%", flex: 1, flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
-                <SearchBar 
-                    placeholder="Rides"
-                    icon={{ name: 'search', style: { fontSize: 25, height: 25, marginTop: -4  } }}
-                    clearIcon={clearIcon}
-                    value={this.state.rideQuery}
-                    containerStyle={{
-                        width: "70%",
-                        height: 58,
-                        backgroundColor: actionBackground,
-                        borderBottomColor: "rgba(0, 0, 0, 0.3)",
-                        borderBottomWidth: 2,
-                        borderTopWidth: 0
-                    }}
-                    inputStyle={{
-                        marginLeft: 15,
-                        paddingTop: 0,
-                        paddingBottom: 0,
-                        fontSize: 22,
-                        color: actionForeground
-                    }}
-                    onChangeText={this.searchRides}
-                    onClearText={this.clearRideSearch} />
-                <View style={{ 
-                    width: "15%", 
-                    height: 58, 
-                    flex: 1, 
-                    justifyContent: 'center', 
-                    alignContent: 'center', 
-                    backgroundColor: actionBackground,
-                    borderBottomColor: "rgba(0, 0, 0, 0.3)",
-                    borderBottomWidth: 2 }}>
-                    <Icon
-                        name={(this.state.timePercent != null)? 'av-timer': 'date-range'}
-                        size={40}
-                        color={actionForeground}
-                        onPress={() => { 
-                            if (this.state.timePercent != null) {
-                                this.setState({ showTimeModal: true });
-                            } else {
-                                this.showCalendar();
-                            }
-                        }}  />
-                </View>
-                <View style={{ 
-                    width: "15%", 
-                    height: 58, 
-                    flex: 1, 
-                    justifyContent: 'center', 
-                    alignContent: 'center', 
-                    backgroundColor: actionBackground,
-                    borderBottomColor: "rgba(0, 0, 0, 0.3)",
-                    borderBottomWidth: 2 }}>
-                    <Icon
-                        name={(this.state.timePercent == null)? 'access-time': 'close'}
-                        size={40}
-                        color={actionForeground}
-                        onPress={() => {
-                            this.toggleTimeMachine(parkSchedules, date);
-                        }} />
-                </View>
-            </View>
-            {
-                (this.state.timePercent != null)?
-                    (this.renderTimeBar(dateTime)): null
-            }
-        </View>);
-    }
-
     getDate = (offset) => {
         var date = moment();
         date.subtract(4, 'hours');
@@ -684,89 +612,6 @@ export default class RideList extends React.Component {
         </View>);
     }
 
-    renderScheduleBar = (parkSchedules, weather) => {
-        if (weather != null) {
-            var temp = weather["feelsLikeF"];
-        }
-        var dayRating = null;
-        if (parkSchedules != null) {
-            dayRating = 0;
-            for (var parkSchedule of parkSchedules) {
-                dayRating += parkSchedule.crowdLevel;
-            }
-            dayRating /= parkSchedules.length;
-        }
-        return (<View style={{
-            width: '100%', 
-            flex: 1, 
-            flexDirection: 'row', 
-            justifyContent: 'space-between', 
-            alignItems: 'center'
-        }}>
-            { (temp != null)?
-                (<View style={{
-                    borderTopRightRadius: 20,
-                    backgroundColor: actionBackground,
-                    width: 60,
-                    paddingTop: 10,
-                    paddingBottom: 15
-                }}>
-                    <Text style={{ color: actionForeground, fontSize: (temp.toString().length > 2)? 25: 30, textAlign: "center" }}>{temp}&deg;</Text>
-                </View>): <View />
-            }
-            { (dayRating != null)?
-                (<View style={{
-                    borderTopLeftRadius: 20,
-                    backgroundColor: actionBackground,
-                    width: 60,
-                    paddingTop: 10,
-                    paddingBottom: 15
-                }}>
-                    <Text style={{ color: actionForeground, fontSize: 30, textAlign: "center" }}>{dayRating.toFixed(1)}</Text>
-                </View>): <View />
-            }
-        </View>)
-    }
-
-    renderParkInfo = (parkSchedule) => {
-        if (parkSchedule != null) {
-            var parkName = parkSchedule["parkName"];
-            var openTime = moment(parkSchedule["openTime"], 'HH:mm:ss');
-            var closeTime = moment(parkSchedule["closeTime"], 'HH:mm:ss');
-            var openTimeStr = openTime.format('h:mm A');
-            var closeTimeStr = closeTime.format('h:mm A');
-            var parkNameBottomBorderRadius = (parkName.length > 15)? 15: 0;
-            var parkHoursTopBorderRadius = (15 - parkNameBottomBorderRadius) * 0.66;
-            return (<View style={{ 
-                flex: 1, 
-                flexDirection: 'column', 
-                justifyContent: 'flex-start', 
-                alignItems: 'center'
-            }}>
-                <Text style={{ 
-                    fontSize: 24, 
-                    padding: 5, 
-                    color: actionForeground, 
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                    borderTopLeftRadius: 15, 
-                    borderTopRightRadius: 15,
-                    borderBottomLeftRadius: parkNameBottomBorderRadius,
-                    borderBottomRightRadius: parkNameBottomBorderRadius }}>{parkName}</Text>
-                <Text style={{ 
-                    fontSize: 18, 
-                    padding: 5, 
-                    color: actionForeground, 
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)', 
-                    borderTopRightRadius: parkHoursTopBorderRadius,
-                    borderTopLeftRadius: parkHoursTopBorderRadius,
-                    borderBottomLeftRadius: 10,
-                    borderBottomRightRadius: 10 }}>{openTimeStr} - {closeTimeStr}</Text>
-            </View>);
-        } else {
-            return (<ActivityIndicator size="large" color="#cccccc" />);
-        }
-    }
-
     rideInFilter = (rideID) => {
         if (this.state.activeFilters != null) {
             console.log("ACTIVE FILTERS: ", this.state.activeFilters, " - ", rideID);
@@ -871,6 +716,10 @@ export default class RideList extends React.Component {
 
     }
 
+    searchRides = (rideQuery) => {
+
+    }
+
     render() {
         var date = this.getDate(this.state.dayOffset);
         var parkSchedules = this.getParkSchedules(this.state.schedules, date);
@@ -888,11 +737,9 @@ export default class RideList extends React.Component {
                 weather={weather}
                 refreshing={this.state.refreshing}
                 renderHeader={() => {
-                    if (this.state.selectedRides == null) {
-                        return this.renderHeader(parkSchedules, date, dateTime);
-                    } else {
-                        return this.renderFilterHeader();
-                    }
+                    return <RidesHeader
+                        schedules={this.state.schedules}
+                        onRideQueryChanged={this.searchRides} />
                 }}
                 onRefresh={this.refreshRides}>
                     <ImageCacheProvider>

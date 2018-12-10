@@ -114,7 +114,6 @@ export default class RidesParallax extends React.Component {
 
         var backgroundSrc = this.parkImages[this.state.parkI][0];
         var foregroundSrc = this.parkImages[this.state.parkI][1];
-        console.log("BACKGROUD SRC: ", backgroundSrc);
         return (<ParallaxScrollView
             refreshControl={
                 <RefreshControl
