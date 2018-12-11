@@ -124,7 +124,7 @@ export default class RidesParallax extends React.Component {
             backgroundColor={Theme.PRIMARY_BACKGROUND}
             contentBackgroundColor={Theme.SECONDARY_BACKGROUND}
             parallaxHeaderHeight={358}
-            stickyHeaderHeight={80}
+            stickyHeaderHeight={110}
             parallaxBackgroundScrollSpeed={30}
             fadeOutForeground={false}
             renderFixedHeader={() => {

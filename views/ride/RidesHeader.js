@@ -2,6 +2,7 @@ import React from 'react';
 import { View } from 'react-native';
 import { Icon, SearchBar } from 'react-native-elements';
 import Theme from '../../Theme';
+import RidesDateTimeSelector from './RidesDateTimeSelector';
 
 export default class RidesHeader extends React.Component {
     constructor(props) {
@@ -19,6 +20,9 @@ export default class RidesHeader extends React.Component {
     }
     
     toggleDateTimeBar = () => {
+        if (this.state.showDateTimeBar) {
+            this.props.onDateTimeChanged(null);
+        }
         this.setState({
             showDateTimeBar: !this.state.showDateTimeBar
         });
@@ -68,7 +72,7 @@ export default class RidesHeader extends React.Component {
                     borderBottomColor: "rgba(0, 0, 0, 0.3)",
                     borderBottomWidth: 2 }}>
                     <Icon
-                        name={(this.state.showDateTimeBar != null)? 'av-timer': 'date-range'}
+                        name={(this.state.showDateTimeBar)? 'av-timer': 'date-range'}
                         size={40}
                         color={Theme.PRIMARY_FOREGROUND}
                         onPress={() => { 
@@ -98,8 +102,17 @@ export default class RidesHeader extends React.Component {
                 </View>
             </View>
             {
-                (this.state.showDateTimeBar != null)?
-                    (<View />): null
+                (this.state.showDateTimeBar)?
+                    (<RidesDateTimeSelector 
+                        schedules={this.props.schedules}
+                        onDateTimeChanged={this.props.onDateTimeChanged}
+                        showDateTimeModal={this.state.showDateTimeModal}
+                        onDateTimeModalClosed={() => {
+                            this.setState({
+                                showDateTimeModal: false
+                            })
+                        }}
+                    />): null
             }
         </View>);
     }
