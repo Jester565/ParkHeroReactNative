@@ -4,7 +4,6 @@ import { Icon, Slider } from 'react-native-elements';
 import Theme from '../../Theme';
 import moment from 'moment';
 import DateTimePicker from 'react-native-modal-datetime-picker';
-import Toast from 'react-native-root-toast';
 
 export default class RidesDateTimeSelector extends React.Component {
     constructor(props) {
