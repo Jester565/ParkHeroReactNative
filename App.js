@@ -4,6 +4,7 @@ import { FormLabel, FormInput, FormValidationMessage } from 'react-native-elemen
 import Authenticator from './views/auth/Authenticator';
 import SignUp from './views/auth/SignUp';
 import Rides from './views/ride/Rides';
+import ResortMap from './views/map/ResortMap';
 import Matterhorn from './Matterhorn';
 import { createStackNavigator, createAppContainer } from 'react-navigation';
 
@@ -20,6 +21,7 @@ const styles = StyleSheet.create({
 });
 
 const navigator = createStackNavigator({
+  ResortMap: {screen: ResortMap},
   Rides: {screen: Rides},
   Auth: {screen: Authenticator},
   SignUp: {screen: SignUp}
