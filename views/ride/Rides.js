@@ -147,7 +147,7 @@ export default class Rides extends React.Component {
         var rides = this.state.rides.slice();
         if (sortMode == 'Name') {
             rides.sort((ride1, ride2) => {
-                return ride1["name"].localeCompare(ride2["name"]);
+                return (sortAsc)? ride1["name"].localeCompare(ride2["name"]): ride2["name"].localeCompare(ride1["name"])
             });
         } else if (sortMode == 'Rating') {
             rides.sort((ride1, ride2) => {
