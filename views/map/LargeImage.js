@@ -1,12 +1,47 @@
 import React, { Component } from 'react';
 import { View, Image } from 'react-native';
 import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
+import { PermissionsAndroid } from 'react-native';
 
 export default class LargeImage extends Component {
     constructor(props) {
         super(props);
         this.HIGHEST_SCALE = 4;
         this.HIGHEST_SCALE_COUNT = 11;
+        this.markerRadius = 50;
+
+        this.state = {
+            latitude: null,
+            longitude: null
+        }
+    }
+
+    componentWillMount() {
+        PermissionsAndroid.request(
+                PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+                {
+                    'title': 'ParkHero Location Permission',
+                    'message': 'Used to update wait times and map navigation'
+                }
+            ).then((granted) => {
+                if (granted) {
+                    this.watchID = navigator.geolocation.watchPosition(
+                        (position) => {
+                            this.setState({
+                                latitude: position.coords.latitude,
+                                longitude: position.coords.longitude
+                            });
+                        },
+                        (error) => console.error("WatchPosition Failed: ", error),
+                        { enableHighAccuracy: true });
+                }
+            })
+    }
+
+    componentWillUnmount() {
+        if (this.watchID != null) {
+            navigator.geolocation.stopObserving(this.watchID);
+        }
     }
 
     shouldComponentUpdate(nextProps, nextState) {
@@ -27,6 +62,17 @@ export default class LargeImage extends Component {
         var rowOffset = Math.trunc((y / nextProps.totalH) * dimSize);
         var colOffset = Math.trunc((x / nextProps.totalW) * dimSize);
         return (rowOffset != this.rowOffset || colOffset != this.colOffset);
+    }
+
+    toPixels(latitude, longitude) {
+        var y = (((latitude - 33.80557) * -35.25 + 0.5555078125) * this.props.totalH / 2) * 1.136;
+        var x = (((longitude - (-117.918677)) * 29.25 + 0.25037109375) * this.props.totalW / 2) * 1.136;
+        console.log("X: ", x, "LONG: ", longitude);
+        console.log("Y: ", y, "LAT: ", latitude);
+        return {
+            x: x,
+            y: y
+        }
     }
 
     render() {
@@ -74,7 +120,28 @@ export default class LargeImage extends Component {
                     source={{
                         uri: 'http://disneymap.s3-website-us-west-1.amazonaws.com/' + fileName
                     }}
+                    activityIndicatorProps={{
+                        color: "rgba(0, 0, 0, 0)"
+                    }}
                     resizeMode={'contain'} />);
+            }
+        }
+
+        var userMarker = null;
+        if (this.state.latitude != null) {
+            var userPixelPos = this.toPixels(this.state.latitude, this.state.longitude);
+            if (userPixelPos.x >= 0 && userPixelPos.x < this.props.totalW / 2 && userPixelPos.y >= 0 && userPixelPos.y < this.props.totalH / 2) {
+                userMarker = <View 
+                    key={"userMarker"}
+                    style={{
+                        position: 'absolute',
+                        left: userPixelPos.x,
+                        top: userPixelPos.y,
+                        width: this.markerRadius * 2,
+                        height: this.markerRadius * 2,
+                        
+                        backgroundColor: 'red'
+                    }}/>
             }
         }
         return (
@@ -82,7 +149,8 @@ export default class LargeImage extends Component {
                     width: this.props.totalW,
                     height: this.props.totalH
                 }}>
-                   { images }
+                    { images }
+                    { userMarker }
                 </View>
         );
     }
