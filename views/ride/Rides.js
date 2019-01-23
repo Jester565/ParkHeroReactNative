@@ -327,11 +327,10 @@ export default class Rides extends React.Component {
         });
     }
 
-    showRefreshed = () => {
-        
-    }
-
     refreshRides = () => {
+        this.setState({
+            "refreshing": true
+        });
         var handleRideUpdate = (recvRides) => {
             var rides = this.state.rides.slice();
             for (var recvRide of recvRides) {
@@ -370,7 +369,9 @@ export default class Rides extends React.Component {
                 if (data.data.updateRides != null) {
                     handleRideUpdate(data.data.updateRides.rides);
                 }
-                this.showRefreshed();
+                this.setState({
+                    "refreshing": false
+                })
             });
         });
     }
