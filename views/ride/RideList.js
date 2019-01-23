@@ -53,6 +53,7 @@ export default class RideLists extends React.Component {
             waitTime={ride.waitTime}
             fastPassTime={ride.fastPassTime}
             waitRating={ride.waitRating}
+            status={ride.status}
             name={ride.name}
             picUrl={ride.picUrl}
             onLongPress={this.onRideLongPressed}

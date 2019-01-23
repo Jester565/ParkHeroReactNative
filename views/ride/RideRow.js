@@ -31,7 +31,6 @@ export default class RideRow extends React.PureComponent {
         if (picUrl != null) {
             var dotIdx = picUrl.lastIndexOf('.');
             picUrl = 'https://s3-us-west-2.amazonaws.com/disneyapp3/' + picUrl.substr(0, dotIdx) + '-0-c' + picUrl.substr(dotIdx);
-            console.log("GETTING PIC: ", picUrl);
         }
         return (
             <TouchableOpacity

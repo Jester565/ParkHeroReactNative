@@ -17,6 +17,7 @@ import RideFilterHeader from './RideFilterHeader';
 import RideList from './RideList';
 import Theme from '../../Theme';
 import * as queries from '../../src/graphql/queries';
+import * as mutations from '../../src/graphql/mutations';
 
 Amplify.configure(AwsExports);
 
@@ -326,15 +327,18 @@ export default class Rides extends React.Component {
         });
     }
 
+    showRefreshed = () => {
+        
+    }
+
     refreshRides = () => {
-        API.graphql(graphqlOperation(queries.getRides)).then((data) => {
-            var recvRides = data.data.getRides;
+        var handleRideUpdate = (recvRides) => {
             var rides = this.state.rides.slice();
             for (var recvRide of recvRides) {
                 var rideID = recvRide.id;
                 var ride = this.rideMap[rideID];
                 //New ride added, create new json structure in array and map
-                if (ride == null) {
+                if (ride == null && recvRide.info != null) {
                     //Add fields to track view of ride row
                     ride = { key: rideID, id: rideID };
                     this.rideMap[rideID] = ride;
@@ -344,9 +348,10 @@ export default class Rides extends React.Component {
                     Object.assign(ride, recvRide.info);
                     rides.push(ride);
                 }
-                Object.assign(ride, recvRide.time);
+                if (ride != null && recvRide.time != null) {
+                    Object.assign(ride, recvRide.time);
+                }
             }
-            console.log("RIDES COMPLETED: ", JSON.stringify(rides));
 
             //If rides were added, we must sort again
             if (rides.length != this.state.rides.length) {
@@ -356,6 +361,17 @@ export default class Rides extends React.Component {
                     rides: rides
                 });
             }
+        }
+        var updatePromise = API.graphql(graphqlOperation(mutations.updateRides));
+        API.graphql(graphqlOperation(queries.getRides)).then((data) => {
+            handleRideUpdate(data.data.getRides);
+            updatePromise.then((data) => {
+                console.log("UPDATE RESP: ", JSON.stringify(data));
+                if (data.data.updateRides != null) {
+                    handleRideUpdate(data.data.updateRides.rides);
+                }
+                this.showRefreshed();
+            });
         });
     }
 
