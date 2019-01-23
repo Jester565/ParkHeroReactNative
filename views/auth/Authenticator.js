@@ -5,14 +5,11 @@ import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import Collapsible from 'react-native-collapsible';
 import Login from './Login';
 import SignUp from './SignUp';
+import Theme from '../../Theme';
 import { GoogleSignin, GoogleSigninButton, statusCodes } from 'react-native-google-signin';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 import * as Animatable from 'react-native-animatable';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth } from 'aws-amplify';
-
-
-Amplify.Logger.LOG_LEVEL = 'INFO';
 
 Amplify.configure(AwsExports);
 
@@ -24,14 +21,14 @@ GoogleSignin.configure({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#fff'
+        backgroundColor: Theme.SECONDARY_BACKGROUND
     },
     optionButton: {
         zIndex: 100, 
         width: 100, 
         borderTopLeftRadius: 10, 
         borderTopRightRadius: 10, 
-        backgroundColor: "rgba(240, 240, 240, 0.98)"
+        backgroundColor: Theme.PRIMARY_BACKGROUND
     }
 });
 
@@ -53,7 +50,7 @@ export default class Authenticator extends React.Component {
     }
 
     componentWillMount() {
-        //this.silentSignIn();
+        this.silentSignIn();
     }
 
     silentSignIn() {
@@ -82,7 +79,6 @@ export default class Authenticator extends React.Component {
 
     //Fired when user presses Google Sign In Button
     onGooglePressed = async() => {
-        console.log("YEEEEEEEEEEEEEET");
         try {
             await GoogleSignin.hasPlayServices();
             var userInfo = await GoogleSignin.signIn();
@@ -102,6 +98,7 @@ export default class Authenticator extends React.Component {
     //Sign in refers to any method of authentication
     onSignIn = (authenticated) => {
         console.log("On Sign In!");
+        this.props.onSignIn(authenticated);
     }
 
     //Change page to login, signup, or google
@@ -137,7 +134,7 @@ export default class Authenticator extends React.Component {
             <ParallaxScrollView
                 ref='_scrollView'
                 backgroundColor="blue"
-                contentBackgroundColor="white"
+                contentBackgroundColor={Theme.SECONDARY_BACKGROUND}
                 parallaxHeaderHeight={300}
                 parallaxBackgroundScrollSpeed={30}
                 stickyHeaderHeight={110}
@@ -155,10 +152,10 @@ export default class Authenticator extends React.Component {
                         <View style={{ height: 300, flex: 1 }}>
                             <View style={{ width: "100%", height: 300, flex: 1 }}>
                                 <Animatable.View animation="bounceInLeft" ref={component => {this._welcome = component}} style={{ width: "100%", height: 300, flex: 1, alignItems: 'center', justifyContent: 'center', position: 'absolute' }} useNativeDriver>
-                                    <Text style={{ fontSize: 30, color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.7)', borderRadius: 5, padding: 5}}>Welcome</Text>
+                                    <Text style={{ fontSize: 30, color: Theme.PRIMARY_FOREGROUND, backgroundColor: 'rgba(0, 0, 0, 0.7)', borderRadius: 5, padding: 5}}>Welcome</Text>
                                 </Animatable.View>
                                 <Animatable.View animation="bounceOutRight" ref={component => this._welcomeBack = component} style={{ width: "100%", height: 300, flex: 1, alignItems: 'center', justifyContent: 'center', position: 'absolute' }} useNativeDriver>
-                                    <Text style={{ fontSize: 30, color: 'white', backgroundColor: 'rgba(0, 0, 0, 0.7)', borderRadius: 5, padding: 5}}>Welcome Back</Text>
+                                    <Text style={{ fontSize: 30, color: Theme.PRIMARY_FOREGROUND, backgroundColor: 'rgba(0, 0, 0, 0.7)', borderRadius: 5, padding: 5}}>Welcome Back</Text>
                                 </Animatable.View>
                             </View>
                         </View>
@@ -167,15 +164,15 @@ export default class Authenticator extends React.Component {
                             alignItems: 'center', position: 'absolute', bottom: -4 }}>
                             { 
                                 (this.state.page != 'sign up')? 
-                                    <Button color="black" buttonStyle={styles.optionButton} title='Sign Up' onPress={this.navigateTo.bind(this, 'sign up')}></Button>: null
+                                    <Button color={Theme.PRIMARY_FOREGROUND} buttonStyle={styles.optionButton} title='Sign Up' onPress={this.navigateTo.bind(this, 'sign up')}></Button>: null
                             }
                             { 
                                 (this.state.page != 'login')? 
-                                    <Button color="black" buttonStyle={styles.optionButton} title='Login' onPress={this.navigateTo.bind(this, 'login')}></Button>: null
+                                    <Button color={Theme.PRIMARY_FOREGROUND} buttonStyle={styles.optionButton} title='Login' onPress={this.navigateTo.bind(this, 'login')}></Button>: null
                             }
                             {
                                 (this.state.page != 'google')?
-                                    <Button color="black" buttonStyle={styles.optionButton} title='Google' onPress={this.onGooglePressed} />: null
+                                    <Button color={Theme.PRIMARY_FOREGROUND} buttonStyle={styles.optionButton} title='Google' onPress={this.onGooglePressed} />: null
                             }
                         </View>
                     </View>

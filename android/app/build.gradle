@@ -75,6 +75,8 @@ android {
 }
 
 dependencies {
+    compile 'com.facebook.fresco:webpsupport:1.3.0'
+    compile project(':react-native-svg')
     implementation project(':rn-fetch-blob')
     compile project(':amazon-cognito-identity-js')
     compile project(':react-native-google-signin')

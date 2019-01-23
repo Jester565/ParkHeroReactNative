@@ -1,0 +1,25 @@
+{
+  "providers": {
+    "awscloudformation": {
+      "AuthRoleName": "arkeroeactative-20190113150110-authRole",
+      "UnauthRoleArn": "arn:aws:iam::387396130957:role/arkeroeactative-20190113150110-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::387396130957:role/arkeroeactative-20190113150110-authRole",
+      "Region": "us-west-2",
+      "DeploymentBucketName": "arkeroeactative-20190113150110-deployment",
+      "UnauthRoleName": "arkeroeactative-20190113150110-unauthRole",
+      "StackName": "arkeroeactative-20190113150110",
+      "StackId": "arn:aws:cloudformation:us-west-2:387396130957:stack/arkeroeactative-20190113150110/1dbed420-1787-11e9-94d5-0a57e06cb5fc"
+    }
+  },
+  "api": {
+    "FastPass": {
+      "service": "AppSync",
+      "output": {
+        "securityType": "AWS_IAM",
+        "GraphQLAPIIdOutput": "xobcvgaffbeplgu5k7em2s3rma",
+        "GraphQLAPIEndpointOutput": "https://yqil4226krbj3hucohe6kiu7ne.appsync-api.us-west-2.amazonaws.com/graphql"
+      },
+      "lastPushTimeStamp": "2019-01-13T23:05:01.502Z"
+    }
+  }
+}

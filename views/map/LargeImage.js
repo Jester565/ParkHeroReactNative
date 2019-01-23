@@ -67,8 +67,6 @@ export default class LargeImage extends Component {
     toPixels(latitude, longitude) {
         var y = (((latitude - 33.80557) * -35.25 + 0.5555078125) * this.props.totalH / 2) * 1.136;
         var x = (((longitude - (-117.918677)) * 29.25 + 0.25037109375) * this.props.totalW / 2) * 1.136;
-        console.log("X: ", x, "LONG: ", longitude);
-        console.log("Y: ", y, "LAT: ", latitude);
         return {
             x: x,
             y: y

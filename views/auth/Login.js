@@ -8,24 +8,10 @@ import ForgotPassword from './ForgotPassword';
 import AwsExports from '../../AwsExports';
 import Code from './Code';
 import Toast from 'react-native-root-toast';
+import Theme from '../../Theme';
 import Amplify, { Auth } from 'aws-amplify';
 
 Amplify.configure(AwsExports);
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff'
-    }
-});
-
-const theme = {
-    Button: {
-      titleStyle: {
-        color: 'red',
-      },
-    },
-  };
 
 export default class Login extends React.Component {
     static navigationOptions = {
@@ -126,9 +112,11 @@ export default class Login extends React.Component {
                         </Fade>
                     </View>
                     <FormInput 
+                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                         placeholder={"Name"} 
                         value={this.state.username}
-                        underlineColorAndroid="#000000" 
+                        underlineColorAndroid={Theme.PRIMARY_FOREGROUND} 
                         returnKeyType = {"next"} 
                         blurOnSubmit={false} 
                         onChangeText={(value) => {this.setState({ "username": value })}}
@@ -142,9 +130,11 @@ export default class Login extends React.Component {
                     </View>
                     <FormInput 
                         ref='_passwordInput' 
+                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                         placeholder={"Password"} 
                         value={this.state.password} 
-                        underlineColorAndroid="#000000" 
+                        underlineColorAndroid={Theme.PRIMARY_FOREGROUND}
                         secureTextEntry={true}
                         onChangeText={(value) => {this.setState({ "password": value })}} />
                 </Animatable.View>
@@ -156,7 +146,13 @@ export default class Login extends React.Component {
                         rounded={true} 
                         backgroundColor={'lime'} 
                         containerViewStyle={{ marginTop: 20 }}
-                        onPress={this.onLoginPressed} />
+                        onPress={this.onLoginPressed}
+                        disabledStyle={{
+                            backgroundColor: Theme.DISABLED_BACKGROUND
+                        }}
+                        disabledTextStyle={{
+                            color: Theme.DISABLED_FOREGROUND
+                        }} />
                 </Animatable.View>
                 <Animatable.View ref="_forgotPassword">
                     <Button
@@ -165,7 +161,13 @@ export default class Login extends React.Component {
                         rounded={true} 
                         backgroundColor={'blue'} 
                         containerViewStyle={{ marginTop: 20 }}
-                        onPress={this.onForgotPasswordPressed} />
+                        onPress={this.onForgotPasswordPressed}
+                        disabledStyle={{
+                            backgroundColor: Theme.DISABLED_BACKGROUND
+                        }}
+                        disabledTextStyle={{
+                            color: Theme.DISABLED_FOREGROUND
+                        }} />
                 </Animatable.View>
             </View>
         );

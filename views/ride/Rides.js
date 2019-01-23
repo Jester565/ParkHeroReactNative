@@ -5,9 +5,8 @@ import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import * as Animatable from 'react-native-animatable';
 import Fade from '../utils/Fade';
 import Toast from 'react-native-root-toast';
-import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
 import AwsExports from '../../AwsExports';
-import Amplify, { Auth } from 'aws-amplify';
+import Amplify, { API, graphqlOperation } from 'aws-amplify';
 import DateTimePicker from 'react-native-modal-datetime-picker';
 import moment from 'moment';
 import distance from 'jaro-winkler';
@@ -17,6 +16,7 @@ import RideFilters from './RideFilters';
 import RideFilterHeader from './RideFilterHeader';
 import RideList from './RideList';
 import Theme from '../../Theme';
+import * as queries from '../../src/graphql/queries';
 
 Amplify.configure(AwsExports);
 
@@ -105,21 +105,27 @@ export default class Rides extends React.Component {
 
         this.state = {
             dateTime: null,
-            rides: testRides,
             selectedRides: null,
             rideQuery: "",
             filterName: "",
-            filters: testFilters,
             activeFilters: null,
             selectedFilters: null,
             showFilters: false,
             sortMode: 'Name',
             sortAsc: true,
             //network state
+            rides: [],
+            filters: testFilters,
             schedules: testParkSchedules,
             weathers: testWeathers,
             refreshing: false
         }
+
+        this.rideMap = {};
+    }
+
+    componentWillMount = () => {
+        this.refreshRides();
     }
 
     rideInFilter = (rideID, activeFilters) => {
@@ -134,17 +140,35 @@ export default class Rides extends React.Component {
         return true;
     }
 
-    //CANNON
-    setSort = (sortMode, sortAsc) => {
+    //WRAPPERS FOR SORT USED TO IMPROVE PERFORMANCE
+    updateSortMode = (sortMode) => {
+        this.sort(this.state.rides.splice(), sortMode, this.state.sortAsc, this.state.rideQuery);
+    }
+
+    updateSortAsc = (sortAsc) => {
+        this.sort(this.state.rides.splice(), this.state.sortAsc, sortAsc, this.state.rideQuery);
+    }
+
+    updateRideQuery = (query) => {
+        this.sort(this.state.rides.splice(), this.state.sortMode, this.state.sortAsc, query);
+    }
+
+    sort = (rides, sortMode, sortAsc, rideQuery) => {
         //Don't sort if user is querying rides
-        if (this.state.rideQuery.length > 0) {
+        if (rideQuery != null && rideQuery.length > 0) {
+            rides.sort((ride1, ride2) => {
+                var dist1 = distance(rideQuery, ride1["name"], { caseSensitive: false });
+                var dist2 = distance(rideQuery, ride2["name"], { caseSensitive: false });
+                return dist2 - dist1;
+            });
             this.setState({
+                rideQuery: rideQuery,
+                rides: rides,
                 sortMode: sortMode,
                 sortAsc: sortAsc
-            })
+            });
             return;
         }
-        var rides = this.state.rides.slice();
         if (sortMode == 'Name') {
             rides.sort((ride1, ride2) => {
                 return (sortAsc)? ride1["name"].localeCompare(ride2["name"]): ride2["name"].localeCompare(ride1["name"])
@@ -171,13 +195,8 @@ export default class Rides extends React.Component {
         this.setState({
             rides: rides,
             sortMode: sortMode,
-            sortAsc: sortAsc
-        });
-    }
-
-    setSortAsc = (asc) => {
-        this.setState({
-            sortAsc: asc
+            sortAsc: sortAsc,
+            rideQuery: null
         });
     }
 
@@ -308,35 +327,83 @@ export default class Rides extends React.Component {
     }
 
     refreshRides = () => {
-        //TODO: Get and update rides
-    }
-
-    searchRides = (rideQuery) => {
-        if (rideQuery.length > 0) {
-            //TODO: Use string comparison to sort rides
+        API.graphql(graphqlOperation(queries.getRides)).then((data) => {
+            var recvRides = data.data.getRides;
             var rides = this.state.rides.slice();
-            rides.sort((ride1, ride2) => {
-                var dist1 = distance(rideQuery, ride1["name"], { caseSensitive: false });
-                var dist2 = distance(rideQuery, ride2["name"], { caseSensitive: false });
-                return dist2 - dist1;
-            });
-            this.setState({
-                rideQuery: rideQuery,
-                rides: rides
-            });
-        } else {
-            this.setState({
-                rideQuery: ""
-            }, () => {
-                this.setSort(this.state.sortMode, this.state.sortAsc);
-            });
-        }
+            for (var recvRide of recvRides) {
+                var rideID = recvRide.id;
+                var ride = this.rideMap[rideID];
+                //New ride added, create new json structure in array and map
+                if (ride == null) {
+                    //Add fields to track view of ride row
+                    ride = { key: rideID, id: rideID };
+                    this.rideMap[rideID] = ride;
+                    ride["visible"] = this.rideInFilter(rideID, this.state.activeFilters);
+                    //Could check if in selectedFilters but might not be desired behavior
+                    ride["selected"] = false;
+                    Object.assign(ride, recvRide.info);
+                    rides.push(ride);
+                }
+                Object.assign(ride, recvRide.time);
+            }
+            console.log("RIDES COMPLETED: ", JSON.stringify(rides));
+
+            //If rides were added, we must sort again
+            if (rides.length != this.state.rides.length) {
+                this.sort(rides, this.state.sortMode, this.state.sortAsc, this.state.rideQuery);
+            } else {
+                this.setState({
+                    rides: rides
+                });
+            }
+        });
     }
 
     updateDateTime = (dateTime) => {
         this.setState({
             dateTime: dateTime
         });
+    }
+
+    updateFilterName = (name) => {
+        this.setState({
+            filterName: name
+        });
+    }
+
+    cancelFilterName = () => {
+        this.setSelectedRides(null);
+        this.setState({
+            filterName: ''
+        });
+    }
+
+    showFilters = () => {
+        this.setState({
+            showFilters: true
+        });
+    }
+
+    hideFilters = () => {
+        this.setState({
+            showFilters: false
+        });
+    }
+
+    renderListHeader = () => {
+        if (this.state.selectedRides == null) {
+            return (<RidesHeader
+                schedules={this.state.schedules}
+                onRideQueryChanged={ this.updateRideQuery }
+                onDateTimeChanged={ this.updateDateTime } />);
+        } else {
+            return (<RideFilterHeader 
+                filterID={this.state.filterName}
+                filters={this.state.fitlers}
+                onSaveFilter={this.saveFilter}
+                onFilterIDChanged={ this.updateFilterName }
+                onFilterEditCancelled={ this.cancelFilterName } />)
+        }
     }
 
     render() {
@@ -353,30 +420,7 @@ export default class Rides extends React.Component {
                 parkSchedules={parkSchedules}
                 weather={weather}
                 refreshing={this.state.refreshing}
-                renderHeader={() => {
-                    if (this.state.selectedRides == null) {
-                        return (<RidesHeader
-                            schedules={this.state.schedules}
-                            onRideQueryChanged={this.searchRides}
-                            onDateTimeChanged={this.updateDateTime} />);
-                    } else {
-                        return (<RideFilterHeader 
-                            filterID={this.state.filterName}
-                            filters={this.state.fitlers}
-                            onSaveFilter={this.saveFilter}
-                            onFilterIDChanged={(filterID) => { 
-                                this.setState({
-                                    filterName: filterID
-                                });
-                            }}
-                            onFilterEditCancelled={() => {
-                                this.setSelectedRides(null);
-                                this.setState({
-                                    filterName: ''
-                                });
-                            }} />)
-                    }
-                }}
+                renderHeader={this.renderListHeader}
                 onRefresh={this.refreshRides}>
                     <RideList 
                         rides={this.state.rides}
@@ -396,18 +440,14 @@ export default class Rides extends React.Component {
                     activeFilters={this.state.activeFilters}
                     sortMode={this.state.sortMode}
                     sortAsc={this.state.sortAsc}
-                    onSortModeChanged={(sortMode) => { this.setSort(sortMode, this.state.sortAsc) }}
-                    onSortAscChanged={(sortAsc) => { this.setSort(this.state.sortMode, sortAsc)}}
+                    onSortModeChanged={ this.updateSortMode }
+                    onSortAscChanged={ this.updateSortAsc }
                     onWatch={this.watchFilter}
                     onUnwatch={this.unwatchFilter}
                     onActiveFiltersChanged={this.setActiveFilters}
                     onEditFilters={this.editFilters}
                     onDeleteFilters={this.deleteFilters}
-                    onClose={() => {
-                        this.setState({
-                            showFilters: false
-                        });
-                    }} />): (
+                    onClose={ this.hideFilters } />): (
                 <Icon
                     raised
                     name='filter-list'
@@ -417,7 +457,7 @@ export default class Rides extends React.Component {
                         right: 10,
                         bottom: 10,
                         backgroundColor: Theme.PRIMARY_BACKGROUND }}
-                    onPress={() => { this.setState({ showFilters: true }) }} />)
+                    onPress={ this.showFilters } />)
             }
         </View>);
     }

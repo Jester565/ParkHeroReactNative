@@ -3,27 +3,13 @@ import { StyleSheet, Image, TextInput, View } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Icon, Text } from 'react-native-elements';
 import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import * as Animatable from 'react-native-animatable';
+import Theme from '../../Theme';
 import Fade from '../utils/Fade';
 import Toast from 'react-native-root-toast';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth } from 'aws-amplify';
 
 Amplify.configure(AwsExports);
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff'
-    }
-});
-
-const theme = {
-    Button: {
-      titleStyle: {
-        color: 'red',
-      },
-    },
-  };
 
 export default class Code extends React.Component {
     static navigationOptions = {
@@ -119,10 +105,10 @@ export default class Code extends React.Component {
                         <Icon
                             name='email'
                             size={100}
-                            color='#000000' />
+                            color={Theme.PRIMARY_FOREGROUND} />
                     </Animatable.View>
                     <Animatable.View animation="bounceInLeft" iterationCount={1} duration={bounceInDuration} style={{ width: "100%", height: 100, flex: 1, justifyContent: 'center', alignItems: 'center', marginBottom: 30}} useNativeDriver>
-                        <Text h4>Check Your Email</Text>
+                        <Text h4 style={{ color: Theme.PRIMARY_FOREGROUND }}>Check Your Email</Text>
                     </Animatable.View>
                     <Animatable.View animation="bounceInRight" iterationCount={1} duration={bounceInDuration} useNativeDriver>
                         <View>
@@ -131,11 +117,13 @@ export default class Code extends React.Component {
                             </Fade>
                         </View>
                         <FormInput 
+                            inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                            placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                             placeholder={"Code"} 
                             value={this.state.code}
                             returnKeyType = {(this.props.config.password == null)? "next": "done"} 
                             blurOnSubmit={false} 
-                            underlineColorAndroid="#000000" 
+                            underlineColorAndroid={Theme.PRIMARY_FOREGROUND}
                             onChangeText={(value) => {this.setState({ code: value })}}
                             onSubmitEditing={() => { 
                                 if (this.props.config.password == null) {
@@ -160,13 +148,15 @@ export default class Code extends React.Component {
                                 </View>
                                 <View>
                                     <FormInput 
+                                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                                         ref='_passwordInput'
                                         placeholder={"Password"} 
                                         returnKeyType = {"next"} 
                                         blurOnSubmit={false} 
                                         value={this.state.password} 
                                         secureTextEntry={true}
-                                        underlineColorAndroid={(this.state.password.length > 0 && this.state.invalidPasswordMessage != null)? "#FF0000": "#000000"} 
+                                        underlineColorAndroid={(this.state.password.length > 0 && this.state.invalidPasswordMessage != null)? "#FF0000": Theme.PRIMARY_FOREGROUND} 
                                         onChangeText={this.setPassword} 
                                         onSubmitEditing={() => { this.refs._confirmPasswordInput.focus(); this.props.scrollTo(300); }} />
                                 </View>
@@ -182,12 +172,14 @@ export default class Code extends React.Component {
                                 </View>
                                 <View>
                                     <FormInput 
+                                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                                         ref='_confirmPasswordInput'
                                         placeholder={"Confirm Password"} 
                                         blurOnSubmit={true} 
                                         value={this.state.confirmPassword} 
                                         secureTextEntry={true}
-                                        underlineColorAndroid={(this.state.confirmPassword.length > 0 && this.state.password != this.state.confirmPassword)? "#FF0000": "#000000"} 
+                                        underlineColorAndroid={(this.state.confirmPassword.length > 0 && this.state.password != this.state.confirmPassword)? "#FF0000": Theme.PRIMARY_FOREGROUND} 
                                         onChangeText={(value) => {this.setState({ "confirmPassword": value })}} />
                                 </View>
                             </Animatable.View>
@@ -205,7 +197,13 @@ export default class Code extends React.Component {
                             rounded={true} 
                             backgroundColor={'lime'} 
                             containerViewStyle={{ marginTop: 20 }} 
-                            onPress={this.onSubmitPressed} />
+                            onPress={this.onSubmitPressed}
+                            disabledStyle={{
+                                backgroundColor: Theme.DISABLED_BACKGROUND
+                            }}
+                            disabledTextStyle={{
+                                color: Theme.DISABLED_FOREGROUND
+                            }} />
                     </View>
 
                     <View animation="bounceInUp" iterationCount={1} duration={bounceInDuration} useNativeDriver>
@@ -216,7 +214,13 @@ export default class Code extends React.Component {
                             rounded={true} 
                             backgroundColor={'blue'} 
                             containerViewStyle={{ marginTop: 20 }} 
-                            onPress={this.onResendPressed} />
+                            onPress={this.onResendPressed}
+                            disabledStyle={{
+                                backgroundColor: Theme.DISABLED_BACKGROUND
+                            }}
+                            disabledTextStyle={{
+                                color: Theme.DISABLED_FOREGROUND
+                            }} />
                     </View>
                 </View>
             );

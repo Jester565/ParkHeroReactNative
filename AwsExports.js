@@ -1,4 +1,7 @@
 var AwsExports = {
+    "aws_appsync_graphqlEndpoint": "https://yqil4226krbj3hucohe6kiu7ne.appsync-api.us-west-2.amazonaws.com/graphql",
+    "aws_appsync_region": "us-west-2",
+    "aws_appsync_authenticationType": "AWS_IAM",
     Auth: {
         // REQUIRED - Amazon Cognito Identity Pool ID
         identityPoolId: 'us-west-2:483ffa7b-a5ca-472e-9fd5-abfff9c335f0', 

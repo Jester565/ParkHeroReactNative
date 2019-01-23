@@ -5,26 +5,12 @@ import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import * as Animatable from 'react-native-animatable';
 import Fade from '../utils/Fade';
 import Code from './Code';
+import Theme from '../../Theme';
 import Toast from 'react-native-root-toast';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth } from 'aws-amplify';
 
 Amplify.configure(AwsExports);
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff'
-    }
-});
-
-const theme = {
-    Button: {
-      titleStyle: {
-        color: 'red',
-      },
-    },
-  };
 
 export default class ForgotPassword extends React.Component {
     static navigationOptions = {
@@ -99,10 +85,10 @@ export default class ForgotPassword extends React.Component {
             <View>
                 <Animatable.View ref="_question" animation="bounceIn" iterationCount={1} duration={bounceInDuration} style={{ justifyContent:'center', alignItems: 'center', width: "100%", height: 110 }} useNativeDriver>
                     { /* Question isn't an icon name, but an icon not found shows a question mark */ }
-                    <Text h1>?</Text>
+                    <Text h1 style={{ color: Theme.PRIMARY_FOREGROUND }}>?</Text>
                 </Animatable.View>
                 <Animatable.View ref="_header" animation="bounceInLeft" iterationCount={1} duration={bounceInDuration} style={{ width: "100%", height: 100, flex: 1, justifyContent: 'center', alignItems: 'center', marginBottom: 30}} useNativeDriver>
-                    <Text h4>Forget Something</Text>
+                    <Text h4 style={{ color: Theme.PRIMARY_FOREGROUND }}>Forget Something</Text>
                 </Animatable.View>
                 <Animatable.View ref="_name" animation="bounceInRight" iterationCount={1} duration={bounceInDuration} useNativeDriver>
                     <View>
@@ -112,9 +98,11 @@ export default class ForgotPassword extends React.Component {
                     </View>
                     <View>
                         <FormInput 
+                            inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                            placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                             placeholder={"Username"} 
                             value={this.state.username}
-                            underlineColorAndroid="#000000" 
+                            underlineColorAndroid={Theme.PRIMARY_FOREGROUND}
                             onChangeText={(value) => {this.setState({ username: value })}} />
                     </View>
                 </Animatable.View>
@@ -126,7 +114,13 @@ export default class ForgotPassword extends React.Component {
                         rounded={true} 
                         backgroundColor={'lime'} 
                         containerViewStyle={{ marginTop: 20 }} 
-                        onPress={this.onSubmit} />
+                        onPress={this.onSubmit}
+                        disabledStyle={{
+                            backgroundColor: Theme.DISABLED_BACKGROUND
+                        }}
+                        disabledTextStyle={{
+                            color: Theme.DISABLED_FOREGROUND
+                        }} />
                 </Animatable.View>
             </View>);
          return (!this.state.showCode)? renderForgotPassword: 

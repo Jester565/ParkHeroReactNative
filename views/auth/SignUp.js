@@ -7,15 +7,9 @@ import * as Animatable from 'react-native-animatable';
 import Toast from 'react-native-root-toast';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth } from 'aws-amplify';
+import Theme from '../../Theme';
 
 Amplify.configure(AwsExports);
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#fff'
-    }
-});
 
 export default class SignUp extends React.Component {
     static navigationOptions = {
@@ -149,7 +143,7 @@ export default class SignUp extends React.Component {
                 <Animatable.View ref='_name' useNativeDriver>
                     <View>
                         <Fade visible={this.state.username.length > 0 && /^[a-z0-9]+$/i.test(this.state.username)}>
-                            <FormLabel>Email</FormLabel>
+                            <FormLabel>Name</FormLabel>
                         </Fade>
                         <View style={{position: 'absolute', top: 0, left: 0}}>
                             <Fade visible={this.state.username.length > 0 && !(/^[a-z0-9]+$/i.test(this.state.username))}>
@@ -159,11 +153,13 @@ export default class SignUp extends React.Component {
                     </View>
                     <FormInput
                         ref='_nameInput' 
+                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                         placeholder={"Name"} 
                         returnKeyType = {"next"} 
                         blurOnSubmit={false} 
                         value={this.state.username} 
-                        underlineColorAndroid="#000000" 
+                        underlineColorAndroid={Theme.PRIMARY_FOREGROUND} 
                         onChangeText={(value) => {this.setState({ "username": value })}}
                         onSubmitEditing={() => { this.refs._emailInput.focus(); this.props.scrollTo(200); }} />
                 </Animatable.View>
@@ -180,11 +176,13 @@ export default class SignUp extends React.Component {
                     </View>
                     <FormInput 
                         ref='_emailInput' 
+                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                         placeholder={"Email"} returnKeyType = {"next"} 
                         keyboardType={"email-address"} 
                         blurOnSubmit={false} 
                         value={this.state.email} 
-                        underlineColorAndroid={(this.state.email.length > 0 && this.state.invalidEmailMessage != null)? "#FF0000": "#000000"} 
+                        underlineColorAndroid={(this.state.email.length > 0 && this.state.invalidEmailMessage != null)? "#FF0000": Theme.PRIMARY_FOREGROUND} 
                         onChangeText={this.setEmail}
                         onSubmitEditing={() => { this.refs._passwordInput.focus(); this.props.scrollTo(250); }} />
                 </Animatable.View>
@@ -201,12 +199,14 @@ export default class SignUp extends React.Component {
                     </View>
                     <FormInput 
                         ref='_passwordInput'
+                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                         placeholder={"Password"} 
                         returnKeyType = {"next"} 
                         blurOnSubmit={false} 
                         value={this.state.password} 
                         secureTextEntry={true}
-                        underlineColorAndroid={(this.state.password.length > 0 && this.state.invalidPasswordMessage != null)? "#FF0000": "#000000"} 
+                        underlineColorAndroid={(this.state.password.length > 0 && this.state.invalidPasswordMessage != null)? "#FF0000": Theme.PRIMARY_FOREGROUND} 
                         onChangeText={this.setPassword} 
                         onSubmitEditing={() => { this.refs._confirmPasswordInput.focus(); this.props.scrollTo(300); }} />
                 </Animatable.View>
@@ -221,11 +221,13 @@ export default class SignUp extends React.Component {
                     </View>
                     <FormInput 
                         ref='_confirmPasswordInput'
+                        inputStyle={{ color: Theme.PRIMARY_FOREGROUND }}
+                        placeholderTextColor={ Theme.DISABLED_FOREGROUND }
                         placeholder={"Confirm Password"} 
                         blurOnSubmit={true} 
                         value={this.state.confirmPassword} 
                         secureTextEntry={true}
-                        underlineColorAndroid={(this.state.confirmPassword.length > 0 && this.state.password != this.state.confirmPassword)? "#FF0000": "#000000"} 
+                        underlineColorAndroid={(this.state.confirmPassword.length > 0 && this.state.password != this.state.confirmPassword)? "#FF0000": Theme.PRIMARY_FOREGROUND} 
                         onChangeText={(value) => {this.setState({ "confirmPassword": value })}} />
                 </Animatable.View>
                 <Animatable.View ref='_signUp' useNativeDriver>
@@ -234,6 +236,12 @@ export default class SignUp extends React.Component {
                         disabled={!signUpEnabled || this.state.signingUp} 
                         loading={this.state.signingUp} 
                         rounded={true} 
+                        disabledStyle={{
+                            backgroundColor: Theme.DISABLED_BACKGROUND
+                        }}
+                        disabledTextStyle={{
+                            color: Theme.DISABLED_FOREGROUND
+                        }}
                         backgroundColor={'lime'} 
                         containerViewStyle={{ marginTop: 20 }}
                         onPress={this.onSignUpPressed} />
