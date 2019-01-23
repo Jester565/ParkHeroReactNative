@@ -47,7 +47,7 @@ export default class Rides extends React.Component {
             {key: '102015', id: '102015', name: 'Space Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: null, fastPassTime: null, rating: null, status: 'Closed', visible: true, selected: false }];
 
         var testParkSchedules = {
-            "2018-12-10": [
+            "2019-01-23": [
                 {
                     parkName: "Disneyland",
                     openTime: "08:00:00",
@@ -63,7 +63,7 @@ export default class Rides extends React.Component {
                     date: "2018-12-10"
                 }
             ],
-            "2018-12-11": [
+            "2019-01-24": [
                 {
                     parkName: "Disneyland",
                     openTime: "09:00:00",
@@ -116,8 +116,8 @@ export default class Rides extends React.Component {
             sortAsc: true,
             //network state
             rides: [],
-            filters: testFilters,
-            schedules: testParkSchedules,
+            filters: [],
+            schedules: {},
             weathers: testWeathers,
             refreshing: false
         }
@@ -127,6 +127,7 @@ export default class Rides extends React.Component {
 
     componentWillMount = () => {
         this.refreshRides();
+        this.refreshSchedules();
     }
 
     rideInFilter = (rideID, activeFilters) => {
@@ -324,6 +325,27 @@ export default class Rides extends React.Component {
         this.setState({
             rides: rides,
             selectedRides: selectedRides
+        });
+    }
+
+    refreshSchedules = () => {
+        API.graphql(graphqlOperation(queries.getSchedules)).then((data) => {
+            console.log("REFRESH SCHEDULES COMPLETE: ", JSON.stringify(data));
+            //Reformat flat array into map of dates to park schedules
+            var schedulesArr = data.data.getSchedules.schedules;
+            var schedulesMap = {};
+            for (var schedule of schedulesArr) {
+                var parkSchedules = schedulesMap[schedule.date];
+                if (parkSchedules == null) {
+                    parkSchedules = [];
+                    schedulesMap[schedule.date] = parkSchedules;
+                }
+                parkSchedules.push(schedule);
+            }
+            console.log("SCHEDULESMAP: ", JSON.stringify(schedulesMap));
+            this.setState({
+                schedules: schedulesMap
+            });
         });
     }
 
