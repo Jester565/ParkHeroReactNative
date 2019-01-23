@@ -30,6 +30,11 @@ export default class Rides extends React.Component {
     constructor(props) {
         super();
 
+        //Maps ride id to object stored in the rides array
+        this.rideMap = {};
+        //Maps datetime to promises so the same request isn't made multiple times (appsync do this?)
+        this.refreshWeatherPromises = {};
+
         var testRides = [
             {key: '102002', id: '102002', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
             {key: '102003', id: '102003', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
@@ -118,16 +123,15 @@ export default class Rides extends React.Component {
             rides: [],
             filters: [],
             schedules: {},
-            weathers: testWeathers,
+            weathers: {},
             refreshing: false
         }
-
-        this.rideMap = {};
     }
 
     componentWillMount = () => {
         this.refreshRides();
         this.refreshSchedules();
+        this.refreshWeather(moment());
     }
 
     rideInFilter = (rideID, activeFilters) => {
@@ -330,7 +334,6 @@ export default class Rides extends React.Component {
 
     refreshSchedules = () => {
         API.graphql(graphqlOperation(queries.getSchedules)).then((data) => {
-            console.log("REFRESH SCHEDULES COMPLETE: ", JSON.stringify(data));
             //Reformat flat array into map of dates to park schedules
             var schedulesArr = data.data.getSchedules.schedules;
             var schedulesMap = {};
@@ -342,9 +345,33 @@ export default class Rides extends React.Component {
                 }
                 parkSchedules.push(schedule);
             }
-            console.log("SCHEDULESMAP: ", JSON.stringify(schedulesMap));
             this.setState({
                 schedules: schedulesMap
+            });
+        });
+    }
+
+    refreshWeather = (date) => {
+        var dateStr = date;
+        if (typeof date != 'string') {
+            dateStr = date.format("YYYY-MM-DD")
+        }
+        //Check if request has already been made
+        if (this.refreshWeatherPromises[dateStr] != null) {
+            return;
+        }
+
+        var refreshPromise = API.graphql(graphqlOperation(queries.getHourlyWeather, { date: dateStr }));
+        this.refreshWeatherPromises[dateStr] = refreshPromise;
+        
+        refreshPromise.then((data) => {
+            var weathers = data.data.getHourlyWeather.weather;
+            var weatherMap = Object.assign({}, this.state.weathers);
+            for (var weather of weathers) {
+                weatherMap[moment.utc(weather.dateTime).format("YYYY-MM-DD HH:mm:ss")] = weather;
+            }
+            this.setState({
+                weathers: weatherMap
             });
         });
     }
@@ -387,18 +414,20 @@ export default class Rides extends React.Component {
         API.graphql(graphqlOperation(queries.getRides)).then((data) => {
             handleRideUpdate(data.data.getRides);
             updatePromise.then((data) => {
-                console.log("UPDATE RESP: ", JSON.stringify(data));
                 if (data.data.updateRides != null) {
                     handleRideUpdate(data.data.updateRides.rides);
                 }
                 this.setState({
-                    "refreshing": false
+                    refreshing: false
                 })
             });
         });
     }
 
     updateDateTime = (dateTime) => {
+        if (dateTime != null) {
+            this.refreshWeather(dateTime);
+        }
         this.setState({
             dateTime: dateTime
         });
