@@ -5,7 +5,7 @@ import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
 import RideRow from './RideRow';
 
 
-export default class RideLists extends React.Component {
+export default class RideList extends React.Component {
     static navigationOptions = {
         title: 'Rides',
         header: null

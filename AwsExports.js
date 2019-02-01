@@ -11,6 +11,10 @@ var AwsExports = {
         userPoolId: 'us-west-2_PkZb6onNf',
         // OPTIONAL - Amazon Cognito Web Client ID
         userPoolWebClientId: '7ev3dsi43umdf23l896bnl8ro7'
+    },
+    Storage: {
+        bucket: 'disneyapp3',
+        region: 'us-west-2'
     }
 }
 

@@ -8,19 +8,10 @@ import moment from 'moment';
 export default class RidesParallax extends React.Component {
     constructor(props) {
         super();
-        this.state = {
-            parkI: 0
-        };
         this.parkImages = [
             [require('../../assets/castle.jpg'), require('../../assets/castleFront.png')],
             [require('../../assets/pier.jpg'), require('../../assets/pierFront.png')]
         ]
-    }
-
-    setParkI = (parkI) => {
-        this.setState({
-            parkI: parkI
-        })
     }
 
     renderParkInfo = (parkSchedule) => {
@@ -109,11 +100,11 @@ export default class RidesParallax extends React.Component {
     render() {
         var parkSchedule = null;
         if (this.props.parkSchedules != null) {
-            parkSchedule = this.props.parkSchedules[this.state.parkI];
+            parkSchedule = this.props.parkSchedules[this.props.parkI];
         }
 
-        var backgroundSrc = this.parkImages[this.state.parkI][0];
-        var foregroundSrc = this.parkImages[this.state.parkI][1];
+        var backgroundSrc = this.parkImages[this.props.parkI][0];
+        var foregroundSrc = this.parkImages[this.props.parkI][1];
         return (<ParallaxScrollView
             refreshControl={
                 <RefreshControl
@@ -147,23 +138,23 @@ export default class RidesParallax extends React.Component {
                     <View style={{ position: "absolute", width: "100%", left: 0, bottom: 0 }}>
                         { this.renderScheduleBar(this.props.parkSchedules, this.props.weather) }
                     </View>
-                    { (this.state.parkI > 0)?
+                    { (this.props.parkI > 0)?
                         (<View style={{ position: 'absolute', left: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
                             <Icon
                                 name="navigate-before"
                                 color={Theme.PRIMARY_FOREGROUND}
                                 size={40}
-                                onPress={() => { this.setParkI(this.state.parkI - 1) }}
+                                onPress={() => { this.props.onParkIChanged(this.props.parkI - 1) }}
                                 containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
                         </View>): null
                     }
-                    { (this.state.parkI < this.parkImages.length - 1)?
+                    { (this.props.parkI < this.parkImages.length - 1)?
                         (<View style={{ position: 'absolute', right: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
                             <Icon
                                 name="navigate-next"
                                 color={Theme.PRIMARY_FOREGROUND}
                                 size={40}
-                                onPress={() => { this.setParkI(this.state.parkI + 1) }}
+                                onPress={() => { this.props.onParkIChanged(this.props.parkI + 1) }}
                                 containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
                         </View>): null
                     }

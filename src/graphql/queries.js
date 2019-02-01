@@ -1,6 +1,22 @@
 // eslint-disable
 // this is an auto generated file. This will be overwritten
 
+export const getUser = `query GetUser($id: String) {
+  getUser(id: $id) {
+    id
+    name
+    profilePicUrl
+  }
+}
+`;
+export const getUsers = `query GetUsers($ids: [String]) {
+  getUsers(ids: $ids) {
+    id
+    name
+    profilePicUrl
+  }
+}
+`;
 export const listFastPasses = `query ListFastPasses {
   listFastPasses {
     id
@@ -29,6 +45,19 @@ export const listFastPasses = `query ListFastPasses {
 `;
 export const listPasses = `query ListPasses {
   listPasses {
+    user
+    passes {
+      id
+      name
+      disID
+      type
+      expirationDT
+    }
+  }
+}
+`;
+export const listFriendPasses = `query ListFriendPasses {
+  listFriendPasses {
     user
     passes {
       id

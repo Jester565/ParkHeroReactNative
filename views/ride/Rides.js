@@ -15,6 +15,8 @@ import RidesHeader from './RidesHeader';
 import RideFilters from './RideFilters';
 import RideFilterHeader from './RideFilterHeader';
 import RideList from './RideList';
+import PassList from '../pass/PassList';
+import { GetBlockLevel } from '../pass/PassLevel';
 import Theme from '../../Theme';
 import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
@@ -109,6 +111,26 @@ export default class Rides extends React.Component {
             }
         }
 
+        var testPasses = [
+            {
+                key: "us-west-123",
+                user: {
+                    id: "us-west-123",
+                    name: "Alex Craig",
+                    profilePicUrl: "profileImgs/us-west-2%3A661298ea-1f59-4dae-9496-be07bcbcbb8a.jpg"
+                },
+                passes: [
+                    {
+                        id: "123",
+                        name: "Alex Craig",
+                        disID: "3FDG",
+                        type: "socal-annual",
+                        expirationDT: "2019-02-23"
+                    }
+                ]
+            }
+        ];
+
         this.state = {
             dateTime: null,
             selectedRides: null,
@@ -124,13 +146,16 @@ export default class Rides extends React.Component {
             filters: [],
             schedules: {},
             weathers: {},
-            refreshing: false
+            userPasses: null,
+            refreshing: false,
+            parkI: 0
         }
     }
 
     componentWillMount = () => {
         this.refreshRides();
-        this.refreshSchedules();
+        var schedulePromise = this.refreshSchedules();
+        this.refreshPasses(schedulePromise);
         this.refreshWeather(moment());
     }
 
@@ -333,47 +358,113 @@ export default class Rides extends React.Component {
     }
 
     refreshSchedules = () => {
-        API.graphql(graphqlOperation(queries.getSchedules)).then((data) => {
-            //Reformat flat array into map of dates to park schedules
-            var schedulesArr = data.data.getSchedules.schedules;
-            var schedulesMap = {};
-            for (var schedule of schedulesArr) {
-                var parkSchedules = schedulesMap[schedule.date];
-                if (parkSchedules == null) {
-                    parkSchedules = [];
-                    schedulesMap[schedule.date] = parkSchedules;
+        return new Promise((resolve, reject) => {
+            API.graphql(graphqlOperation(queries.getSchedules)).then((data) => {
+                //Reformat flat array into map of dates to park schedules
+                var schedulesArr = data.data.getSchedules.schedules;
+                var schedulesMap = {};
+                for (var schedule of schedulesArr) {
+                    var parkSchedules = schedulesMap[schedule.date];
+                    if (parkSchedules == null) {
+                        parkSchedules = [];
+                        schedulesMap[schedule.date] = parkSchedules;
+                    }
+                    parkSchedules.push(schedule);
                 }
-                parkSchedules.push(schedule);
-            }
-            this.setState({
-                schedules: schedulesMap
+                this.setState({
+                    schedules: schedulesMap
+                });
+                resolve(schedulesMap);
             });
         });
     }
 
     refreshWeather = (date) => {
-        var dateStr = date;
-        if (typeof date != 'string') {
-            dateStr = date.format("YYYY-MM-DD")
-        }
-        //Check if request has already been made
-        if (this.refreshWeatherPromises[dateStr] != null) {
-            return;
-        }
-
-        var refreshPromise = API.graphql(graphqlOperation(queries.getHourlyWeather, { date: dateStr }));
-        this.refreshWeatherPromises[dateStr] = refreshPromise;
-        
-        refreshPromise.then((data) => {
-            var weathers = data.data.getHourlyWeather.weather;
-            var weatherMap = Object.assign({}, this.state.weathers);
-            for (var weather of weathers) {
-                weatherMap[moment.utc(weather.dateTime).format("YYYY-MM-DD HH:mm:ss")] = weather;
+        return new Promise((resolve, reject) => {
+            var dateStr = date;
+            if (typeof date != 'string') {
+                dateStr = date.format("YYYY-MM-DD")
             }
-            this.setState({
-                weathers: weatherMap
+            //Check if request has already been made
+            if (this.refreshWeatherPromises[dateStr] != null) {
+                return;
+            }
+
+            var refreshPromise = API.graphql(graphqlOperation(queries.getHourlyWeather, { date: dateStr }));
+            this.refreshWeatherPromises[dateStr] = refreshPromise;
+            
+            refreshPromise.then((data) => {
+                var weathers = data.data.getHourlyWeather.weather;
+                var weatherMap = Object.assign({}, this.state.weathers);
+                for (var weather of weathers) {
+                    weatherMap[moment.utc(weather.dateTime).format("YYYY-MM-DD HH:mm:ss")] = weather;
+                }
+                this.setState({
+                    weathers: weatherMap
+                });
+                resolve(weatherMap);
             });
         });
+    }
+
+    refreshPasses = (schedulePromise) => {
+        return new Promise((resolve, reject) => {
+            var promises = [];
+            promises.push(schedulePromise);
+            promises.push(API.graphql(graphqlOperation(queries.listFriendPasses)));
+            Promise.all(promises).then((results) => {
+                console.log("REFRESH PROMISE ALL INVOKED: ", JSON.stringify(results[1]));
+                var data = results[1];
+                this.friendPasses = data.data.listFriendPasses;
+                this.updateBlackoutPasses(moment(), results[0]);
+                resolve();
+            });
+        });
+    }
+
+    updateBlackoutPasses = (dateTime, schedules) => {
+        var date = this.getParkDateForDateTime(dateTime);
+        var parkSchedules = this.getParkSchedules(schedules, date);
+
+        var blockLevel = parkSchedules[this.state.parkI].blockLevel;
+
+        var userIDs = [];
+        var cangoPasses = {};
+        console.log("PRE USER PASS LOOP");
+        for (var userPasses of this.friendPasses) {
+            var userID = null;
+            var passes = [];
+            for (var pass of userPasses.passes) {
+                if (GetBlockLevel(pass.type) >= blockLevel) {
+                    if (userID == null) {
+                        userID = userPasses.user.id;
+                        userIDs.push(userID);
+                    }
+                    passes.push(pass);
+                }
+            }
+            if (userID != null) {
+                cangoPasses[userID] = passes;
+            }
+        }
+        console.log("USERIDS: ", userIDs);
+        if (userIDs.length > 0) {
+            API.graphql(graphqlOperation(queries.getUsers, { ids: userIDs })).then((data) => {
+                var users = data.data.getUsers;
+                for (var user of users) {
+                    var passes = cangoPasses[user.id];
+                    userPasses.push({ key: user.id, user: user, passes: passes });
+                }
+                console.log("USER PASSES UPDATED: ", JSON.stringify(userPasses));
+                this.setState({
+                    userPasses: userPasses
+                });
+            });
+        } else {
+            this.setState({
+                userPasses: null
+            });
+        }
     }
 
     refreshRides = () => {
@@ -474,6 +565,12 @@ export default class Rides extends React.Component {
         }
     }
 
+    onParkIChanged = (parkI) => {
+        this.setState({
+            parkI: parkI
+        });
+    }
+
     render() {
         var dateTime = this.state.dateTime;
         if (dateTime == null) {
@@ -487,9 +584,17 @@ export default class Rides extends React.Component {
             <RidesParallax
                 parkSchedules={parkSchedules}
                 weather={weather}
+                parkI={this.state.parkI}
                 refreshing={this.state.refreshing}
                 renderHeader={this.renderListHeader}
-                onRefresh={this.refreshRides}>
+                onRefresh={this.refreshRides}
+                onParkIChanged={this.onParkIChanged}>
+                    {
+                        (this.state.userPasses != null)?
+                            (<PassList 
+                                userPasses={this.state.userPasses} />): null
+                    }
+
                     <RideList 
                         rides={this.state.rides}
                         filters={this.state.fitlers}
