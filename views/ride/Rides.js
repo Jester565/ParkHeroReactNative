@@ -173,15 +173,15 @@ export default class Rides extends React.Component {
 
     //WRAPPERS FOR SORT USED TO IMPROVE PERFORMANCE
     updateSortMode = (sortMode) => {
-        this.sort(this.state.rides.splice(), sortMode, this.state.sortAsc, this.state.rideQuery);
+        this.sort(this.state.rides.slice(), sortMode, this.state.sortAsc, this.state.rideQuery);
     }
 
     updateSortAsc = (sortAsc) => {
-        this.sort(this.state.rides.splice(), this.state.sortAsc, sortAsc, this.state.rideQuery);
+        this.sort(this.state.rides.slice(), this.state.sortMode, sortAsc, this.state.rideQuery);
     }
 
     updateRideQuery = (query) => {
-        this.sort(this.state.rides.splice(), this.state.sortMode, this.state.sortAsc, query);
+        this.sort(this.state.rides.slice(), this.state.sortMode, this.state.sortAsc, query);
     }
 
     sort = (rides, sortMode, sortAsc, rideQuery) => {
@@ -206,14 +206,14 @@ export default class Rides extends React.Component {
             });
         } else if (sortMode == 'Rating') {
             rides.sort((ride1, ride2) => {
-                var rating1 = (ride1["rating"] != null)? ride1["rating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
-                var rating2 = (ride2["rating"] != null)? ride2["rating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+                var rating1 = (ride1["waitRating"] != null)? ride1["waitRating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+                var rating2 = (ride2["waitRating"] != null)? ride2["waitRating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
                 return (!sortAsc)? (rating1 - rating2): (rating2 - rating1);
             });
         } else if (sortMode == "Wait") {
             rides.sort((ride1, ride2) => {
-                var wait1 = (ride1["waitMins"] != null)? ride1["waitMins"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
-                var wait2 = (ride2["waitMins"] != null)? ride2["waitMins"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+                var wait1 = (ride1["waitTime"] != null)? ride1["waitTime"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+                var wait2 = (ride2["waitTime"] != null)? ride2["waitTime"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
                 return (sortAsc)? (wait1 - wait2): (wait2 - wait1);
             });
         } else if (sortMode == "FastPass") {
