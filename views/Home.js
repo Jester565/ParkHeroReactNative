@@ -1,10 +1,10 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import AwsExports from '../AwsExports';
 import Rides from './ride/Rides';
 import Authenticator from './auth/Authenticator';
 import Amplify, { Auth } from 'aws-amplify';
-import { ViewPager } from 'rn-viewpager';
+import { ViewPager, IndicatorViewPager, PagerTabIndicator } from 'rn-viewpager';
 
 Amplify.configure(AwsExports);
 
@@ -23,8 +23,29 @@ export default class Home extends React.Component {
     }
 
     render() {
+        var tabs = [{
+            iconSource: require('../assets/partys.png'),
+            selectedIconSource: require('../assets/party.png')
+        },
+        {
+            iconSource: require('../assets/homes.png'),
+            selectedIconSource: require('../assets/home.png')
+        },
+        {
+            iconSource: require('../assets/ride2s.png'),
+            selectedIconSource: require('../assets/ride2.png')
+        }]
         return (
-            <ViewPager style={{height: "100%", width: "100%"}}>
+            <IndicatorViewPager style={{ width: "100%", height: "100%" }} indicator={
+                <PagerTabIndicator 
+                    style={{backgroundColor: '#222222', height: 50}}
+                    tabs={tabs} 
+                    iconStyle={{ width: 30, height: 30 }} 
+                    selectedIconStyle={{ width: 30, height: 30 }}  />
+                }>
+                <View style={{height: "100%", width: "100%"}}>
+                    <Text>Party</Text>
+                </View>
                 <View style={{height: "100%", width: "100%"}}>
                     <Authenticator onSignIn={() => { this.setState({ signedIn: true }); }} />
                 </View>
@@ -36,7 +57,7 @@ export default class Home extends React.Component {
                         ): null
                     }
                 </View>
-            </ViewPager>
+            </IndicatorViewPager>
         );
     }
 };
