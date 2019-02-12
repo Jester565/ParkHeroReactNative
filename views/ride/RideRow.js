@@ -15,7 +15,7 @@ export default class RideRow extends React.PureComponent {
             flex: 1, 
             flexDirection:'row', 
             justifyContent: 'flex-start',
-            backgroundColor: '#444444',
+            backgroundColor: '#999999',
             padding: 5,
             borderRadius: 5,
             borderWidth: 3,
