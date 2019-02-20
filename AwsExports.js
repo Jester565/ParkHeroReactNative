@@ -1,5 +1,5 @@
 var AwsExports = {
-    "aws_appsync_graphqlEndpoint": "https://yqil4226krbj3hucohe6kiu7ne.appsync-api.us-west-2.amazonaws.com/graphql",
+    "aws_appsync_graphqlEndpoint": "https://xla7qczlgbexpdnpbb5jahr2v4.appsync-api.us-west-2.amazonaws.com/graphql",
     "aws_appsync_region": "us-west-2",
     "aws_appsync_authenticationType": "AWS_IAM",
     Auth: {

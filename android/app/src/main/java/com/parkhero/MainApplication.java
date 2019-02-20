@@ -3,6 +3,7 @@ package com.parkhero;
 import android.app.Application;
 
 import com.facebook.react.ReactApplication;
+import com.horcrux.svg.SvgPackage;
 import com.RNFetchBlob.RNFetchBlobPackage; 
 import com.amazonaws.RNAWSCognitoPackage;
 import co.apptailor.googlesignin.RNGoogleSigninPackage;
@@ -29,6 +30,7 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
+            new SvgPackage(),
             new RNFetchBlobPackage(),
             new RNAWSCognitoPackage(),
             new RNGoogleSigninPackage(),

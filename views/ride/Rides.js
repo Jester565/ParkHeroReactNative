@@ -155,7 +155,7 @@ export default class Rides extends React.Component {
     componentWillMount = () => {
         this.refreshRides();
         var schedulePromise = this.refreshSchedules();
-        this.refreshPasses(schedulePromise);
+        //this.refreshPasses(schedulePromise);
         this.refreshWeather(moment());
     }
 
@@ -361,7 +361,7 @@ export default class Rides extends React.Component {
         return new Promise((resolve, reject) => {
             API.graphql(graphqlOperation(queries.getSchedules)).then((data) => {
                 //Reformat flat array into map of dates to park schedules
-                var schedulesArr = data.data.getSchedules.schedules;
+                var schedulesArr = data.data.getSchedules;
                 var schedulesMap = {};
                 for (var schedule of schedulesArr) {
                     var parkSchedules = schedulesMap[schedule.date];
@@ -390,11 +390,11 @@ export default class Rides extends React.Component {
                 return;
             }
 
-            var refreshPromise = API.graphql(graphqlOperation(queries.getHourlyWeather, { date: dateStr }));
+            var refreshPromise = API.graphql(graphqlOperation(queries.getWeather, { date: dateStr }));
             this.refreshWeatherPromises[dateStr] = refreshPromise;
             
             refreshPromise.then((data) => {
-                var weathers = data.data.getHourlyWeather.weather;
+                var weathers = data.data.getWeather;
                 var weatherMap = Object.assign({}, this.state.weathers);
                 for (var weather of weathers) {
                     weatherMap[moment.utc(weather.dateTime).format("YYYY-MM-DD HH:mm:ss")] = weather;
@@ -413,7 +413,6 @@ export default class Rides extends React.Component {
             promises.push(schedulePromise);
             promises.push(API.graphql(graphqlOperation(queries.listFriendPasses)));
             Promise.all(promises).then((results) => {
-                console.log("REFRESH PROMISE ALL INVOKED: ", JSON.stringify(results[1]));
                 var data = results[1];
                 this.friendPasses = data.data.listFriendPasses;
                 this.updateBlackoutPasses(moment(), results[0]);
@@ -430,7 +429,6 @@ export default class Rides extends React.Component {
 
         var userIDs = [];
         var cangoPasses = {};
-        console.log("PRE USER PASS LOOP");
         for (var userPasses of this.friendPasses) {
             var userID = null;
             var passes = [];
@@ -501,12 +499,12 @@ export default class Rides extends React.Component {
                 });
             }
         }
-        var updatePromise = API.graphql(graphqlOperation(mutations.updateRides));
+        var updatePromise = API.graphql(graphqlOperation(mutations.getRideTimes));
         API.graphql(graphqlOperation(queries.getRides)).then((data) => {
             handleRideUpdate(data.data.getRides);
             updatePromise.then((data) => {
                 if (data.data.updateRides != null) {
-                    handleRideUpdate(data.data.updateRides.rides);
+                    handleRideUpdate(data.data.updateRides);
                 }
                 this.setState({
                     refreshing: false

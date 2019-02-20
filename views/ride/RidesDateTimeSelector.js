@@ -35,7 +35,6 @@ export default class RidesDateTimeSelector extends React.Component {
         for (var dateStr in schedules) {
             var date = moment(dateStr, 'YYYY-MM-DD');
             var dayDiff = date.diff(scheduleNow, 'days');
-            console.log("COMPARING: ", dateStr , "-", dayDiff);
             if (dayDiff < minDayOffset) {
                 minDayOffset = dayDiff;
             } else if (dayDiff > maxDayOffset) {
@@ -142,6 +141,7 @@ export default class RidesDateTimeSelector extends React.Component {
         this.setState({
             dateTime: rangedDateTime
         });
+        this.props.onDateTimeChanged(rangedDateTime);
         this.props.onDateTimeModalClosed();
     }
 

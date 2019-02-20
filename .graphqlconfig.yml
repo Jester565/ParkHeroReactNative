@@ -1,0 +1,17 @@
+projects:
+  ParkHero:
+    schemaPath: src\graphql\schema.json
+    includes:
+      - src\graphql\**\*.js
+    excludes:
+      - ./amplify/**
+    extensions:
+      amplify:
+        graphQLApiId: hyhp4ovzszeojnmrbj35bck5p4
+        codeGenTarget: javascript
+        generatedFileName: ''
+        docsFilePath: src\graphql
+        region: us-west-2
+      endpoints:
+        prod: >-
+          https://xla7qczlgbexpdnpbb5jahr2v4.appsync-api.us-west-2.amazonaws.com/graphql
