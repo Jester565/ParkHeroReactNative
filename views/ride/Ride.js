@@ -3,6 +3,7 @@ import { ScrollView, View, TouchableOpacity, Text } from 'react-native';
 import { FormInput, Button, Icon } from 'react-native-elements';
 import { CachedImage } from 'react-native-cached-image';
 import { Dimensions } from 'react-native';
+import * as Animatable from 'react-native-animatable';
 import Theme from '../../Theme';
 import moment from 'moment';
 import { PagerDotIndicator, IndicatorViewPager } from 'rn-viewpager';
@@ -10,6 +11,7 @@ import DraggableFlatList from 'react-native-draggable-flatlist'
 import AwsExports from '../../AwsExports';
 import Amplify, { Storage } from 'aws-amplify';
 import ImagePicker from 'react-native-image-picker';
+import Collapsible from 'react-native-collapsible';
 
 Amplify.configure(AwsExports);
 
@@ -105,13 +107,26 @@ export default class Ride extends React.Component {
 
     onEdit = () => {
         var ride = this.getRide();
+
+        var transitionLength = 450;
+        this.refs._editIcon.bounceOutRight(transitionLength);
+        this.refs._editFooter.bounceInUp(transitionLength);
+        this.refs._deleteImageIcon.bounceInLeft(transitionLength);
+        this.refs._addImageIcon.bounceInRight(transitionLength);
+
         this.setState({
             editing: true,
             name: ride.name
-        })
+        });
     }
 
     onCancelEdit = () => {
+        var transitionLength = 450;
+        this.refs._editIcon.bounceInRight(transitionLength);
+        this.refs._editFooter.bounceOutDown(transitionLength);
+        this.refs._deleteImageIcon.bounceOutLeft(transitionLength);
+        this.refs._addImageIcon.bounceOutRight(transitionLength);
+
         this.setState({
             editing: false
         });
@@ -243,20 +258,13 @@ export default class Ride extends React.Component {
         </TouchableOpacity>);
     }
 
-    renderHeader = (ride) => {
+    renderHeader = () => {
         var screenWidth = Dimensions.get('window').width;
         var screenHeight = Dimensions.get('window').height;
-        var selectedPic = null;
-        if (this.state.selectedPicI < this.state.pics.length) {
-            selectedPic = this.state.pics[this.state.selectedPicI];
-        }
-
-        var deleteDisabled = (selectedPic == null || selectedPic.public);
-        var addDisabled = (selectedPic == null);
 
         return (<View style={{
             width: screenWidth, 
-            height: screenHeight * 0.6 + 105,
+            height: screenHeight * 0.6,
             paddingBottom: 20,
             backgroundColor: Theme.PRIMARY_BACKGROUND
         }}>
@@ -299,15 +307,23 @@ export default class Ride extends React.Component {
                     }))
                 }
             </IndicatorViewPager>
-            <View style={{ 
-                position: 'absolute',
-                left: 0,
-                bottom: 0,
-                minWidth: "100%", 
+        </View>);
+    }
+
+    renderEditHeader = () => {
+        var fontSize = 30;
+        var screenWidth = Dimensions.get('window').width;
+        var screenHeight = Dimensions.get('window').height;
+        
+        return (
+            <Collapsible collapsed={!this.state.editing}>
+                <View style={{
+                width: "100%", 
                 height: 105,
                 flexDirection: 'row', 
                 justifyContent: 'space-evenly', 
-                alignContent: 'center' }}>
+                alignContent: 'center',
+                backgroundColor: Theme.PRIMARY_BACKGROUND }}>
                     <DraggableFlatList
                         contentContainerStyle={{
                             flex: (this.state.pics.length * 110 < screenWidth)? 1: 0, 
@@ -319,70 +335,92 @@ export default class Ride extends React.Component {
                         renderItem={this.renderSmallPic}
                         horizontal={true}
                         onMoveEnd={this.onMoveEnd} />
-            </View>
-            <Icon
-                raised
-                name='delete'
-                disabled={deleteDisabled}
-                color={(!deleteDisabled)? Theme.PRIMARY_FOREGROUND: Theme.DISABLED_FOREGROUND}
-                containerStyle={{ 
-                    position: 'absolute',
-                    left: 3,
-                    top: screenHeight * 0.54,
-                    backgroundColor: (!deleteDisabled)? 'red': Theme.DISABLED_BACKGROUND }}
-                onPress={ this.onDeletePic } />
-            <Icon
-                raised
-                name='add'
-                disabled={ addDisabled }
-                color={Theme.PRIMARY_FOREGROUND}
-                containerStyle={{ 
-                    position: 'absolute',
-                    right: 3,
-                    top: screenHeight * 0.54,
-                    backgroundColor: 'green' }}
-                onPress={ this.onAddPic } />
-        </View>);
-    }
-    
-    renderNameEdit = () => {
-        var fontSize = 30;
-
-        return (
-            <View>
-                <FormInput 
-                    inputStyle={{ color: Theme.PRIMARY_FOREGROUND, fontSize: fontSize * 0.9 }}
-                    placeholderTextColor={ Theme.DISABLED_FOREGROUND }
-                    placeholder={"Name"} 
-                    value={this.state.name}
-                    returnKeyType = {"done"} 
-                    underlineColorAndroid={Theme.PRIMARY_FOREGROUND}
-                    onChangeText={(value) => {this.setState({ name: value })}}
-                    onSubmitEditing={this.onNameSubmit} />
-            </View>
-        );
+                </View>
+                <View style={{ width: "100%", flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center', marginBottom: 15 }}>
+                    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                        <FormInput 
+                            inputStyle={{ color: Theme.PRIMARY_FOREGROUND, fontSize: fontSize * 0.9 }}
+                            placeholderTextColor={ Theme.DISABLED_FOREGROUND }
+                            placeholder={"Name"} 
+                            pointerEvents={"none"}
+                            value={this.state.name}
+                            returnKeyType = {"done"} 
+                            underlineColorAndroid={Theme.PRIMARY_FOREGROUND}
+                            onChangeText={(value) => {this.setState({ name: value })}}
+                            onSubmitEditing={this.onNameSubmit}
+                            onFocus={() => {
+                                this.refs._scrollView.scrollTo({ y: screenHeight * 0.4, animated: true });
+                            }} />
+                    </View>
+                </View>
+            </Collapsible>);
     }
 
     render() {
+        var selectedPic = null;
+        if (this.state.selectedPicI < this.state.pics.length) {
+            selectedPic = this.state.pics[this.state.selectedPicI];
+        }
+
+        var screenWidth = Dimensions.get('window').width;
+        var screenHeight = Dimensions.get('window').height;
+
+        var deleteDisabled = (selectedPic == null || selectedPic.public);
+        var addDisabled = (selectedPic == null);
+
         var ride = this.getRide();
         var submitDisabled = !(this.state.name != null && this.state.name != ride.name && this.state.name.length > 0);
 
         var fontSize = 30;
         return (<View>
-            <ScrollView>
-                {this.renderHeader(ride)}
-                <View style={{ width: "100%", flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center', marginBottom: 15 }}>
-                    <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-                        {
-                            (this.state.editing)? (
-                                this.renderNameEdit(ride)
-                            ): (
-                                <Text style={{textAlign: 'center', fontSize: fontSize * 1.2, fontWeight: 'bold', color: Theme.PRIMARY_FOREGROUND }}>
-                                    {ride.name}
-                                </Text>)
-                        }
-                    </View>
+            <ScrollView ref="_scrollView">
+                <View>
+                    {this.renderHeader(ride)}
+                    {this.renderEditHeader()}
+                    <Animatable.View 
+                    ref="_deleteImageIcon" 
+                    animation="bounceOutLeft"
+                    style={{
+                        position: 'absolute',
+                        left: 3,
+                        top: screenHeight * 0.54
+                    }}>
+                        <Icon
+                            raised
+                            name='delete'
+                            disabled={deleteDisabled}
+                            color={(!deleteDisabled)? Theme.PRIMARY_FOREGROUND: Theme.DISABLED_FOREGROUND}
+                            containerStyle={{ 
+                                backgroundColor: (!deleteDisabled)? 'red': Theme.DISABLED_BACKGROUND }}
+                            onPress={ this.onDeletePic } />
+                    </Animatable.View>
+                    <Animatable.View 
+                    ref="_addImageIcon" 
+                    animation="bounceOutRight"
+                    style={{
+                        position: 'absolute',
+                        right: 3,
+                        top: screenHeight * 0.54
+                    }}>
+                        <Icon
+                            raised
+                            name='add'
+                            disabled={ addDisabled }
+                            color={Theme.PRIMARY_FOREGROUND}
+                            containerStyle={{ 
+                                backgroundColor: 'green' }}
+                            onPress={ this.onAddPic } />
+                    </Animatable.View>
                 </View>
+                <Collapsible collapsed={this.state.editing}>
+                    <View style={{ width: "100%", flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center', marginBottom: 15 }}>
+                        <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
+                            <Text style={{textAlign: 'center', fontSize: fontSize * 1.2, fontWeight: 'bold', color: Theme.PRIMARY_FOREGROUND }}>
+                                {ride.name}
+                            </Text>
+                        </View>
+                    </View>
+                </Collapsible>
                 <View style={{ width: "100%", flex: 1, flexDirection: 'row', marginBottom: 15, paddingBottom: 15, borderBottomWidth: 4, borderColor: 'rgba(0, 0, 0, .4)' }}>
                     <View style={{
                         flex: 1, 
@@ -461,62 +499,66 @@ export default class Ride extends React.Component {
                     </View>
                 </View>
             </ScrollView>
-            {
-                (!this.state.editing)? (
-                    <Icon
-                    raised
-                    name='edit'
-                    color={Theme.PRIMARY_FOREGROUND}
-                    containerStyle={{ 
-                        position: 'absolute',
-                        right: 10,
-                        bottom: 10,
-                        backgroundColor: 'blue' }}
-                    onPress={ this.onEdit } />
-                ): (
-                    <View style={{
-                        position: 'absolute',
-                        left: 0,
-                        bottom: 0,
-                        width: "100%",
-                        flexDirection: 'row', 
-                        justifyContent: 'space-evenly',
-                        paddingBottom: 10,
-                        paddingTop: 10,
-                        backgroundColor: Theme.PRIMARY_BACKGROUND,
-                        borderTopWidth: 3,
-                        borderColor: "#222222"
-                    }}>
-                        <Button
-                            title='CANCEL' 
-                            disabled={this.state.saving}
-                            rounded={true} 
-                            backgroundColor={'red'} 
-                            containerViewStyle={{ flex: 1 }}
-                            onPress={this.onCancelEdit}
-                            disabledStyle={{
-                                backgroundColor: Theme.DISABLED_BACKGROUND
-                            }}
-                            disabledTextStyle={{
-                                color: Theme.DISABLED_FOREGROUND
-                            }} />
-                        <Button
-                            title='SUBMIT' 
-                            loading={this.state.saving} 
-                            disabled={this.state.saving || submitDisabled}
-                            rounded={true} 
-                            backgroundColor={'lime'} 
-                            containerViewStyle={{ flex: 1 }}
-                            onPress={this.onSubmit}
-                            disabledStyle={{
-                                backgroundColor: Theme.DISABLED_BACKGROUND
-                            }}
-                            disabledTextStyle={{
-                                color: Theme.DISABLED_FOREGROUND
-                            }} />
-                    </View>
-                )
-            }
+            <Animatable.View 
+            ref="_editIcon"
+            animation="bounceInRight"
+            style={{
+                position: 'absolute',
+                right: 10,
+                bottom: 10
+            }}>
+                <Icon
+                raised
+                name='edit'
+                color={Theme.PRIMARY_FOREGROUND}
+                containerStyle={{ 
+                    backgroundColor: 'blue' }}
+                onPress={ this.onEdit } />
+            </Animatable.View>
+            <Animatable.View 
+            ref="_editFooter"
+            animation="bounceOutDown"
+            style={{
+                position: 'absolute',
+                left: 0,
+                bottom: -30,
+                width: "100%",
+                flexDirection: 'row', 
+                justifyContent: 'space-evenly',
+                paddingTop: 10,
+                backgroundColor: Theme.PRIMARY_BACKGROUND,
+                borderTopWidth: 3,
+                borderColor: "#222222",
+                paddingBottom: 40
+            }}>
+                <Button
+                    title='CANCEL' 
+                    disabled={this.state.saving}
+                    rounded={true} 
+                    backgroundColor={'red'} 
+                    containerViewStyle={{ flex: 1 }}
+                    onPress={this.onCancelEdit}
+                    disabledStyle={{
+                        backgroundColor: Theme.DISABLED_BACKGROUND
+                    }}
+                    disabledTextStyle={{
+                        color: Theme.DISABLED_FOREGROUND
+                    }} />
+                <Button
+                    title='SUBMIT' 
+                    loading={this.state.saving} 
+                    disabled={this.state.saving || submitDisabled}
+                    rounded={true} 
+                    backgroundColor={'lime'} 
+                    containerViewStyle={{ flex: 1 }}
+                    onPress={this.onSubmit}
+                    disabledStyle={{
+                        backgroundColor: Theme.DISABLED_BACKGROUND
+                    }}
+                    disabledTextStyle={{
+                        color: Theme.DISABLED_FOREGROUND
+                    }} />
+            </Animatable.View>
         </View>);
     }
 };
