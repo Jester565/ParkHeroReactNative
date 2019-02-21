@@ -53,7 +53,7 @@ export default class Home extends React.Component {
                     {
                         (this.state.signedIn)?
                         (
-                            <Rides />
+                            <Rides navigation={this.props.navigation} />
                         ): null
                     }
                 </View>

@@ -569,6 +569,13 @@ export default class Rides extends React.Component {
         });
     }
 
+    openRide = (rideID) => {
+        var ride = this.rideMap[rideID];
+        this.props.navigation.navigate('Ride', {
+            ride: ride
+        });
+    }
+
     render() {
         var dateTime = this.state.dateTime;
         if (dateTime == null) {
@@ -598,7 +605,8 @@ export default class Rides extends React.Component {
                         filters={this.state.fitlers}
                         activeFilters={this.state.activeFilters}
                         selectedRides={this.state.selectedRides}
-                        onSelectedRidesChanged={this.setSelectedRides} />
+                        onSelectedRidesChanged={this.setSelectedRides}
+                        openRide={this.openRide} />
                     <View style={{
                         width: "100%",
                         height: (this.state.showFilters)? 300: 0,

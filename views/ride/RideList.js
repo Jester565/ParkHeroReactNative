@@ -15,13 +15,9 @@ export default class RideList extends React.Component {
         super();
     }
 
-    openRide = (ride) => {
-        //TODO: Open ride activity
-    }
-
     onRidePressed = (rideID) => {
         if (this.props.selectedRides == null) {
-            this.openRide(ride);
+            this.props.openRide(rideID);
         } else {
             var selectedRides = this.props.selectedRides;
             if (selectedRides[rideID] != null) {

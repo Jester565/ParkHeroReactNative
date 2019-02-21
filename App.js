@@ -6,8 +6,9 @@ import SignUp from './views/auth/SignUp';
 import Rides from './views/ride/Rides';
 import ResortMap from './views/map/ResortMap';
 import Home from './views/Home';
-import Matterhorn from './Matterhorn';
+import Ride from './views/ride/Ride';
 import { createStackNavigator, createAppContainer } from 'react-navigation';
+import Theme from './Theme';
 
 const styles = StyleSheet.create({
   container: {
@@ -22,7 +23,12 @@ const styles = StyleSheet.create({
 });
 
 const navigator = createStackNavigator({
-  Home: {screen: Home}
+    Home: {screen: Home},
+    Ride: {screen: Ride}
+  }, {
+    cardStyle: {
+      backgroundColor: Theme.SECONDARY_BACKGROUND
+    }
 });
 
 const App = createAppContainer(navigator);

@@ -3,8 +3,9 @@ package com.parkhero;
 import android.app.Application;
 
 import com.facebook.react.ReactApplication;
+import com.imagepicker.ImagePickerPackage;
+import com.RNFetchBlob.RNFetchBlobPackage;
 import com.horcrux.svg.SvgPackage;
-import com.RNFetchBlob.RNFetchBlobPackage; 
 import com.amazonaws.RNAWSCognitoPackage;
 import co.apptailor.googlesignin.RNGoogleSigninPackage;
 import com.swmansion.gesturehandler.react.RNGestureHandlerPackage;
@@ -30,8 +31,9 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
-            new SvgPackage(),
+            new ImagePickerPackage(),
             new RNFetchBlobPackage(),
+            new SvgPackage(),
             new RNAWSCognitoPackage(),
             new RNGoogleSigninPackage(),
             new RNGestureHandlerPackage(),
