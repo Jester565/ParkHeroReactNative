@@ -9,7 +9,8 @@ import Theme from '../../Theme';
 import { GoogleSignin, GoogleSigninButton, statusCodes } from 'react-native-google-signin';
 import * as Animatable from 'react-native-animatable';
 import AwsExports from '../../AwsExports';
-import Amplify, { Auth } from 'aws-amplify';
+import Amplify, { Auth, API, graphqlOperation } from 'aws-amplify';
+import * as mutations from '../../src/graphql/mutations';
 
 Amplify.configure(AwsExports);
 
@@ -65,10 +66,12 @@ export default class Authenticator extends React.Component {
             );
         }
         googleSilentSignIn().then(() => {
+            console.log("GOOGLE SIGN IN");
             this.onSignIn(true);
         }).catch((e) => {
             Auth.currentSession()
             .then(() => {
+                console.log("REUSE SIGN IN");
                 this.onSignIn(true);
             }).catch((err) => {
                 console.log("User is unauthenticated!");
@@ -96,9 +99,12 @@ export default class Authenticator extends React.Component {
     }
 
     //Sign in refers to any method of authentication
-    onSignIn = (authenticated) => {
+    onSignIn = (authenticated, username) => {
         console.log("On Sign In!");
-        this.props.onSignIn(authenticated);
+        API.graphql(graphqlOperation(mutations.createUser, { name: username })).then((data) => {
+            var user = data.data.createUser;
+            this.props.onSignIn(authenticated, user);
+        });
     }
 
     //Change page to login, signup, or google

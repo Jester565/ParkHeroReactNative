@@ -6,10 +6,13 @@ export const getRides = `query GetRides {
     id
     info {
       name
+      officialName
       picUrl
+      officialPicUrl
       land
       height
       labels
+      customPicUrls
     }
     time {
       status

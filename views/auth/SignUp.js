@@ -77,7 +77,7 @@ export default class SignUp extends React.Component {
                 attributes: attributes
             });
             if (result.userConfirmed) {
-                this.props.onSignIn();
+                this.props.onSignIn(true, this.state.username);
             } else {
                 this.openCode();
             }

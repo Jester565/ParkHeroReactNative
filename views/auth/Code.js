@@ -38,7 +38,7 @@ export default class Code extends React.Component {
             try {
                 await Auth.confirmSignUp(this.props.config.username, this.state.code);
                 await Auth.signIn(this.props.config.username, pwd);
-                this.props.onSignIn(true);
+                this.props.onSignIn(true, this.props.config.username);
             } catch (err) {
                 this.refs._submit.shake(1000);
                 Toast.show(err.message);
