@@ -9,9 +9,14 @@ import moment from 'moment';
 import { PagerDotIndicator, IndicatorViewPager } from 'rn-viewpager';
 import DraggableFlatList from 'react-native-draggable-flatlist'
 import AwsExports from '../../AwsExports';
-import Amplify, { Storage } from 'aws-amplify';
+import Amplify, { API, graphqlOperation, Storage } from 'aws-amplify';
 import ImagePicker from 'react-native-image-picker';
 import Collapsible from 'react-native-collapsible';
+import * as queries from '../../src/graphql/queries';
+import * as mutations from '../../src/graphql/mutations';
+
+Amplify.configure(AwsExports);
+
 
 Amplify.configure(AwsExports);
 
@@ -26,9 +31,12 @@ export default class Ride extends React.Component {
         super();
         const { navigation } = props;
         var ride = navigation.getParam('ride', {
+            id: "15510732",
             name: 'Alice in Wonderland',
+            officialName: 'Alice in Wonderland',
             picUrl: 'rides/15510732',
-            customPics: ['rides/15510732', 'rides/15575069'],
+            officialPicUrl: 'rides/15510732',
+            customPicUrls: ['rides/15510732', 'rides/15575069'],
             waitTime: 20,
             waitRating: 4.523,
             fastPassTime: '13:25:00',
@@ -37,12 +45,29 @@ export default class Ride extends React.Component {
             height: '48 in, 120 cm',
             labels: 'Action, Adventure, Excitement, Teens, Scary, Family'
         });
-        var picUrls = (ride.customPics != null)? ride.customPics: [ride.picUrl];
+
+        this.signedUrls = {};
+        this.signPromises = {};
+
+        var pics = this.getPics(ride);
+
+        this.state = {
+            editing: false,
+            submitting: false,
+            ride: ride,
+            pics: pics,
+            officialPics: pics,
+            selectedPicI: 0
+        }
+    }
+
+    getPics = (ride) => {
+        var picUrls = (ride.customPicUrls != null)? ride.customPicUrls: [ride.picUrl];
         var pics = [];
         picUrls.forEach((picUrl, i) => {
             var pic = {
                 key: picUrl,
-                public: false,
+                public: (picUrl == ride.officialPicUrl),
                 url: picUrl,
                 urls: [],
                 keys: [],
@@ -54,24 +79,19 @@ export default class Ride extends React.Component {
                 var key = pic.url + '-' + i.toString() + '.webp';
                 pic.urls.push('https://s3-us-west-2.amazonaws.com/disneyapp3/' + key);
                 pic.keys.push(key);
-                pic.signedUrls.push(null);
+                pic.signedUrls.push(this.signedUrls[key]);
             }
             pics.push(pic);
         });
-
-        this.state = {
-            editing: false,
-            ride: ride,
-            pics: pics,
-            selectedPicI: 0
-        }
-
-        this.signPromises = {};
+        return pics;
     }
 
     getSignedUrl = (sizeI, iPic) => {
-        if (iPic.local || iPic.public) {
+        if (iPic.local) {
             return iPic.url;
+        }
+        if (iPic.public) {
+            return iPic.urls[sizeI];
         }
         var key = iPic.keys[sizeI];
         if (this.signPromises[key] != null) {
@@ -87,6 +107,7 @@ export default class Ride extends React.Component {
         this.signPromises[key] = getPromise;
         getPromise.then((signedUrl) => {
             console.log("GOT: ", signedUrl);
+            this.signedUrls[key] = signedUrl;
             var picI = null;
             this.state.pics.forEach((pic, i) => {
                 if (pic.url == iPic.url) {
@@ -128,15 +149,51 @@ export default class Ride extends React.Component {
         this.refs._addImageIcon.bounceOutRight(transitionLength);
 
         this.setState({
-            editing: false
+            editing: false,
+            submitting: false,
+            pics: this.state.officialPics,
+            selectedPicI: 0
         });
     }
 
     onSubmit = () => {
         var ride = this.getRide();
-        if (this.state.name == ride.name && this.state.name != null && this.state.name.length > 0) {
-            return;
-        }
+        this.setState({
+            submitting: true
+        }, () => {
+            var customName = this.state.name;
+            var picPayload = [];
+            for (var pic of this.state.pics) {
+                picPayload.push({
+                    url: pic.url,
+                    added: pic.local
+                });
+            }
+            API.graphql(graphqlOperation(mutations.updateCustomRideInfo, { 
+                rideID: ride.id, 
+                customName: customName, 
+                pics: picPayload })).then((data) => {
+                    var rideData = data.data.updateCustomRideInfo;
+                    console.log("PICS: ", JSON.stringify(this.state.pics));
+                    var newRide = {
+                        id: rideData.id
+                    };
+                    Object.assign(newRide, rideData.info);
+                    Object.assign(newRide, rideData.time);
+                    var pics = this.getPics(newRide);
+                    console.log("NEW PICS: ", JSON.stringify(pics));
+                    this.setState({
+                        ride: newRide,
+                        pics: pics,
+                        officialPics: pics
+                    }, () => {
+                        this.onCancelEdit();
+                    });
+
+                    const { params} = this.props.navigation.state;
+                    params.onRideUpdate(newRide);
+            });   
+        });
     }
 
     onDeletePic = () => {
@@ -369,7 +426,22 @@ export default class Ride extends React.Component {
         var addDisabled = (selectedPic == null);
 
         var ride = this.getRide();
-        var submitDisabled = !(this.state.name != null && this.state.name != ride.name && this.state.name.length > 0);
+        var submitDisabled = !(this.state.name != null && this.state.name.length > 0);
+        if (!submitDisabled) {
+            var nameChanged = (this.state.name != ride.name);
+            if (!nameChanged) {
+                var picsChanged = (this.state.pics.length != this.state.officialPics.length);
+                if (!picsChanged) {
+                    this.state.pics.forEach((pic, i) => {
+                        var officialPic = this.state.officialPics[i];
+                        if (pic.url != officialPic.url) {
+                            picsChanged = true;
+                        }
+                    });
+                }
+            }
+            submitDisabled = (!nameChanged && !picsChanged);
+        }
 
         var fontSize = 30;
         return (<View>
@@ -546,8 +618,8 @@ export default class Ride extends React.Component {
                     }} />
                 <Button
                     title='SUBMIT' 
-                    loading={this.state.saving} 
-                    disabled={this.state.saving || submitDisabled}
+                    loading={this.state.submitting} 
+                    disabled={this.state.submitting || submitDisabled}
                     rounded={true} 
                     backgroundColor={'lime'} 
                     containerViewStyle={{ flex: 1 }}

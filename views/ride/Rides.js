@@ -572,8 +572,17 @@ export default class Rides extends React.Component {
     openRide = (rideID) => {
         var ride = this.rideMap[rideID];
         this.props.navigation.navigate('Ride', {
-            ride: ride
+            ride: ride,
+            onRideUpdate: this.onRideUpdate
         });
+    }
+
+    onRideUpdate = (newRide) => {
+        var rides = this.state.rides.slice();
+        var ride = this.rideMap[newRide.id];
+        //New ride added, create new json structure in array and map
+        Object.assign(ride, newRide);
+        this.sort(rides, this.state.sortMode, this.state.sortAsc, this.state.rideQuery);
     }
 
     render() {
