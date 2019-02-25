@@ -20,6 +20,15 @@
         "GraphQLAPIEndpointOutput": "https://yqil4226krbj3hucohe6kiu7ne.appsync-api.us-west-2.amazonaws.com/graphql"
       },
       "lastPushTimeStamp": "2019-01-13T23:05:01.502Z"
+    },
+    "ParkHero": {
+      "service": "AppSync",
+      "output": {
+        "securityType": "AWS_IAM",
+        "GraphQLAPIIdOutput": "hyhp4ovzszeojnmrbj35bck5p4",
+        "GraphQLAPIEndpointOutput": "https://xla7qczlgbexpdnpbb5jahr2v4.appsync-api.us-west-2.amazonaws.com/graphql"
+      },
+      "lastPushTimeStamp": "2019-02-20T02:19:43.198Z"
     }
   }
 }
