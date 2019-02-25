@@ -17,10 +17,6 @@ import * as mutations from '../../src/graphql/mutations';
 
 Amplify.configure(AwsExports);
 
-
-Amplify.configure(AwsExports);
-
-
 export default class Ride extends React.Component {
     static navigationOptions = {
         title: 'Ride',
@@ -57,7 +53,8 @@ export default class Ride extends React.Component {
             ride: ride,
             pics: pics,
             officialPics: pics,
-            selectedPicI: 0
+            selectedPicI: 0,
+            showEditing: false
         }
     }
 
@@ -129,16 +126,17 @@ export default class Ride extends React.Component {
     onEdit = () => {
         var ride = this.getRide();
 
-        var transitionLength = 450;
-        this.refs._editIcon.bounceOutRight(transitionLength);
-        this.refs._editFooter.bounceInUp(transitionLength);
-        this.refs._deleteImageIcon.bounceInLeft(transitionLength);
-        this.refs._addImageIcon.bounceInRight(transitionLength);
-
         this.setState({
             editing: true,
-            name: ride.name
-        });
+            name: ride.name,
+            showEditing: true
+        }, () => {
+            var transitionLength = 450;
+            this.refs._editIcon.bounceOutRight(transitionLength);
+            this.refs._editFooter.bounceInUp(transitionLength);
+            this.refs._deleteImageIcon.bounceInLeft(transitionLength);
+            this.refs._addImageIcon.bounceInRight(transitionLength);
+        })
     }
 
     onCancelEdit = () => {
@@ -146,7 +144,13 @@ export default class Ride extends React.Component {
         this.refs._editIcon.bounceInRight(transitionLength);
         this.refs._editFooter.bounceOutDown(transitionLength);
         this.refs._deleteImageIcon.bounceOutLeft(transitionLength);
-        this.refs._addImageIcon.bounceOutRight(transitionLength);
+        this.refs._addImageIcon.bounceOutRight(transitionLength).then(endState => {
+            if (endState.finished) {
+                this.setState({
+                    showEditing: false
+                })
+            }
+        });
 
         this.setState({
             editing: false,
@@ -449,40 +453,48 @@ export default class Ride extends React.Component {
                 <View>
                     {this.renderHeader(ride)}
                     {this.renderEditHeader()}
-                    <Animatable.View 
-                    ref="_deleteImageIcon" 
-                    animation="bounceOutLeft"
-                    style={{
-                        position: 'absolute',
-                        left: 3,
-                        top: screenHeight * 0.54
-                    }}>
-                        <Icon
-                            raised
-                            name='delete'
-                            disabled={deleteDisabled}
-                            color={(!deleteDisabled)? Theme.PRIMARY_FOREGROUND: Theme.DISABLED_FOREGROUND}
-                            containerStyle={{ 
-                                backgroundColor: (!deleteDisabled)? 'red': Theme.DISABLED_BACKGROUND }}
-                            onPress={ this.onDeletePic } />
-                    </Animatable.View>
-                    <Animatable.View 
-                    ref="_addImageIcon" 
-                    animation="bounceOutRight"
-                    style={{
-                        position: 'absolute',
-                        right: 3,
-                        top: screenHeight * 0.54
-                    }}>
-                        <Icon
-                            raised
-                            name='add'
-                            disabled={ addDisabled }
-                            color={Theme.PRIMARY_FOREGROUND}
-                            containerStyle={{ 
-                                backgroundColor: 'green' }}
-                            onPress={ this.onAddPic } />
-                    </Animatable.View>
+                    {
+                        (this.state.showEditing)? (
+                            <Animatable.View 
+                            ref="_deleteImageIcon" 
+                            animation="bounceOutLeft"
+                            style={{
+                                position: 'absolute',
+                                left: 3,
+                                top: screenHeight * 0.54
+                            }}>
+                                <Icon
+                                    raised
+                                    name='delete'
+                                    disabled={deleteDisabled}
+                                    color={(!deleteDisabled)? Theme.PRIMARY_FOREGROUND: Theme.DISABLED_FOREGROUND}
+                                    containerStyle={{ 
+                                        backgroundColor: (!deleteDisabled)? 'red': Theme.DISABLED_BACKGROUND }}
+                                    onPress={ this.onDeletePic } />
+                            </Animatable.View>
+                        ): null
+                    }
+                    {
+                        this.state.showEditing? (
+                            <Animatable.View 
+                            ref="_addImageIcon" 
+                            animation="bounceOutRight"
+                            style={{
+                                position: 'absolute',
+                                right: 3,
+                                top: screenHeight * 0.54
+                            }}>
+                                <Icon
+                                    raised
+                                    name='add'
+                                    disabled={ addDisabled }
+                                    color={Theme.PRIMARY_FOREGROUND}
+                                    containerStyle={{ 
+                                        backgroundColor: 'green' }}
+                                    onPress={ this.onAddPic } />
+                            </Animatable.View>
+                        ): null
+                    }
                 </View>
                 <Collapsible collapsed={this.state.editing}>
                     <View style={{ width: "100%", flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center', marginBottom: 15 }}>
@@ -587,50 +599,54 @@ export default class Ride extends React.Component {
                     backgroundColor: 'blue' }}
                 onPress={ this.onEdit } />
             </Animatable.View>
-            <Animatable.View 
-            ref="_editFooter"
-            animation="bounceOutDown"
-            style={{
-                position: 'absolute',
-                left: 0,
-                bottom: -30,
-                width: "100%",
-                flexDirection: 'row', 
-                justifyContent: 'space-evenly',
-                paddingTop: 10,
-                backgroundColor: Theme.PRIMARY_BACKGROUND,
-                borderTopWidth: 3,
-                borderColor: "#222222",
-                paddingBottom: 40
-            }}>
-                <Button
-                    title='CANCEL' 
-                    disabled={this.state.saving}
-                    rounded={true} 
-                    backgroundColor={'red'} 
-                    containerViewStyle={{ flex: 1 }}
-                    onPress={this.onCancelEdit}
-                    disabledStyle={{
-                        backgroundColor: Theme.DISABLED_BACKGROUND
-                    }}
-                    disabledTextStyle={{
-                        color: Theme.DISABLED_FOREGROUND
-                    }} />
-                <Button
-                    title='SUBMIT' 
-                    loading={this.state.submitting} 
-                    disabled={this.state.submitting || submitDisabled}
-                    rounded={true} 
-                    backgroundColor={'lime'} 
-                    containerViewStyle={{ flex: 1 }}
-                    onPress={this.onSubmit}
-                    disabledStyle={{
-                        backgroundColor: Theme.DISABLED_BACKGROUND
-                    }}
-                    disabledTextStyle={{
-                        color: Theme.DISABLED_FOREGROUND
-                    }} />
-            </Animatable.View>
+            {
+                this.state.showEditing? (
+                    <Animatable.View 
+                    ref="_editFooter"
+                    animation="bounceOutDown"
+                    style={{
+                        position: 'absolute',
+                        left: 0,
+                        bottom: -30,
+                        width: "100%",
+                        flexDirection: 'row', 
+                        justifyContent: 'space-evenly',
+                        paddingTop: 10,
+                        backgroundColor: Theme.PRIMARY_BACKGROUND,
+                        borderTopWidth: 3,
+                        borderColor: "#222222",
+                        paddingBottom: 40
+                    }}>
+                        <Button
+                            title='CANCEL' 
+                            disabled={this.state.saving}
+                            rounded={true} 
+                            backgroundColor={'red'} 
+                            containerViewStyle={{ flex: 1 }}
+                            onPress={this.onCancelEdit}
+                            disabledStyle={{
+                                backgroundColor: Theme.DISABLED_BACKGROUND
+                            }}
+                            disabledTextStyle={{
+                                color: Theme.DISABLED_FOREGROUND
+                            }} />
+                        <Button
+                            title='SUBMIT' 
+                            loading={this.state.submitting} 
+                            disabled={this.state.submitting || submitDisabled}
+                            rounded={true} 
+                            backgroundColor={'lime'} 
+                            containerViewStyle={{ flex: 1 }}
+                            onPress={this.onSubmit}
+                            disabledStyle={{
+                                backgroundColor: Theme.DISABLED_BACKGROUND
+                            }}
+                            disabledTextStyle={{
+                                color: Theme.DISABLED_FOREGROUND
+                            }} />
+                    </Animatable.View>
+                ): null
+            }
         </View>);
     }
 };
