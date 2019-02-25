@@ -167,12 +167,12 @@ export default class Ride extends React.Component {
         }, () => {
             var customName = this.state.name;
             var picPayload = [];
-            for (var pic of this.state.pics) {
+            this.state.pics.forEach((pic, i) => {
                 picPayload.push({
                     url: pic.url,
                     added: pic.local
                 });
-            }
+            });
             API.graphql(graphqlOperation(mutations.updateCustomRideInfo, { 
                 rideID: ride.id, 
                 customName: customName, 
@@ -214,6 +214,9 @@ export default class Ride extends React.Component {
     onAddPic = () => {
         var pickerOptions = {
             title: 'Select Picture',
+            maxWidth: 1000,
+            maxHeight: 1000,
+            quality: 0.75,
             storageOptions: {
                 skipBackup: false,
                 path: 'images'

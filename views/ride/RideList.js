@@ -51,7 +51,7 @@ export default class RideList extends React.Component {
             waitRating={ride.waitRating}
             status={ride.status}
             name={ride.name}
-            picUrl={ride.picUrl}
+            signedPicUrl={ride.signedPicUrl}
             onLongPress={this.onRideLongPressed}
             onPress={this.onRidePressed} />
     }

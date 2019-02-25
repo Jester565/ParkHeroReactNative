@@ -27,10 +27,6 @@ export default class RideRow extends React.PureComponent {
             cardStyle.backgroundColor = `hsl(${Math.round((this.props.waitRating * 120)/10)}, 100%, 50%)`
         }
 
-        var picUrl = this.props.picUrl;
-        if (picUrl != null) {
-            picUrl = 'https://s3-us-west-2.amazonaws.com/disneyapp3/' + picUrl + '-1.webp';
-        }
         return (
             <TouchableOpacity
                 onPress={() => { this.props.onPress(this.props.id) }}
@@ -38,7 +34,7 @@ export default class RideRow extends React.PureComponent {
                 <View 
                     elevation={10} 
                     style={cardStyle}>
-                    <CachedImage style={{ width: 60, height: 60, borderRadius: 30 }} source={{uri: picUrl}}/>
+                    <CachedImage style={{ width: 60, height: 60, borderRadius: 30 }} source={{uri: this.props.signedPicUrl}}/>
                     { /* alignContent applies to secondary access (in this case horizontal and we want it centered */ }
                     <View style={{ width: "100%", flex: 1, flexDirection: 'column', justifyContent: 'space-evenly', alignContent: 'center' }}>
                         <View style={{ width: "100%", flex: 1, flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center' }}>

@@ -6,7 +6,7 @@ import * as Animatable from 'react-native-animatable';
 import Fade from '../utils/Fade';
 import Toast from 'react-native-root-toast';
 import AwsExports from '../../AwsExports';
-import Amplify, { API, graphqlOperation } from 'aws-amplify';
+import Amplify, { API, graphqlOperation, Storage } from 'aws-amplify';
 import DateTimePicker from 'react-native-modal-datetime-picker';
 import moment from 'moment';
 import distance from 'jaro-winkler';
@@ -29,7 +29,7 @@ export default class Rides extends React.Component {
         header: null
     };
 
-    constructor(props) {
+    constructor() {
         super();
 
         //Maps ride id to object stored in the rides array
@@ -37,99 +37,8 @@ export default class Rides extends React.Component {
         //Maps datetime to promises so the same request isn't made multiple times (appsync do this?)
         this.refreshWeatherPromises = {};
 
-        var testRides = [
-            {key: '102002', id: '102002', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102003', id: '102003', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102004', id: '102004', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102005', id: '102005', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102006', id: '102006', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 5, fastPassTime: '3:20 PM', rating: 10, visible: true, selected: false },
-            {key: '102007', id: '102007', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102008', id: '102008', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102009', id: '102009', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102010', id: '102010', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102011', id: '102011', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102012', id: '102012', name: 'Thunder Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102013', id: '102013', name: 'Radiator Springs Racers', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102014', id: '102014', name: 'Splash Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: 20, fastPassTime: '6:30 PM', rating: 5, visible: true, selected: false },
-            {key: '102015', id: '102015', name: 'Space Mountain', img: "https://s3.amazonaws.com/uifaces/faces/twitter/kfriedson/128.jpg", waitMins: null, fastPassTime: null, rating: null, status: 'Closed', visible: true, selected: false }];
-
-        var testParkSchedules = {
-            "2019-01-23": [
-                {
-                    parkName: "Disneyland",
-                    openTime: "08:00:00",
-                    closeTime: "23:00:00",
-                    crowdLevel: 5,
-                    date: "2018-12-10",
-                },
-                {
-                    parkName: "California Adventures",
-                    openTime: "08:00:00",
-                    closeTime: "23:00:00",
-                    crowdLevel: 4,
-                    date: "2018-12-10"
-                }
-            ],
-            "2019-01-24": [
-                {
-                    parkName: "Disneyland",
-                    openTime: "09:00:00",
-                    closeTime: "00:00:00",
-                    crowdLevel: 7,
-                    date: "2018-12-11"
-                },
-                {
-                    parkName: "California Adventures",
-                    openTime: "10:00:00",
-                    closeTime: "20:00:00",
-                    crowdLevel: 10,
-                    date: "2018-12-11"
-                }
-            ]
-        }
-
-        var testWeathers = {
-            "2018-12-08 12:00:00": {
-                feelsLikeF: 72
-            },
-            "2018-12-08 13:00:00": {
-                feelsLikeF: 72
-            },
-            "2018-12-08 14:00:00": {
-                feelsLikeF: 77
-            },
-            "2018-12-08 15:00:00": {
-                feelsLikeF: 100
-            }
-        };
-
-        var testFilters = {
-            "favorites": {
-                key: "favorites",
-                filterID: "favorites",
-                rideIDs: { "102002": true, "14141": true }
-            }
-        }
-
-        var testPasses = [
-            {
-                key: "us-west-123",
-                user: {
-                    id: "us-west-123",
-                    name: "Alex Craig",
-                    profilePicUrl: "profileImgs/us-west-2%3A661298ea-1f59-4dae-9496-be07bcbcbb8a.jpg"
-                },
-                passes: [
-                    {
-                        id: "123",
-                        name: "Alex Craig",
-                        disID: "3FDG",
-                        type: "socal-annual",
-                        expirationDT: "2019-02-23"
-                    }
-                ]
-            }
-        ];
+        this.signedUrls = {};
+        this.signPromises = {};
 
         this.state = {
             dateTime: null,
@@ -157,6 +66,30 @@ export default class Rides extends React.Component {
         var schedulePromise = this.refreshSchedules();
         //this.refreshPasses(schedulePromise);
         this.refreshWeather(moment());
+    }
+
+    getSignedUrl = (rideID, url, sizeI) => {
+        var key = url + '-' + sizeI.toString() + '.webp';
+        console.log("GET SIGNED URL: ", key);
+        if (this.signPromises[key] != null) {
+            return this.signedUrls[key];
+        }
+        var getPromise = Storage.get(key, { 
+            level: 'public',
+            customPrefix: {
+                public: ''
+        }});
+        this.signPromises[key] = getPromise;
+        getPromise.then((signedUrl) => {
+            console.log("GOT SIGNED URL: ", signedUrl);
+            this.signedUrls[key] = signedUrl;
+            var rides = this.state.rides.slice();
+            var ride = this.rideMap[rideID];
+            ride.signedPicUrl = signedUrl;
+            this.setState({
+                rides: rides
+            });
+        });
     }
 
     rideInFilter = (rideID, activeFilters) => {
@@ -483,6 +416,12 @@ export default class Rides extends React.Component {
                     //Could check if in selectedFilters but might not be desired behavior
                     ride["selected"] = false;
                     Object.assign(ride, recvRide.info);
+
+                    if (ride["picUrl"] != ride["officialPicUrl"]) {
+                        this.getSignedUrl(rideID, ride["picUrl"], 1);
+                    } else {
+                        ride.signedPicUrl = 'https://s3-us-west-2.amazonaws.com/disneyapp3/' + ride["picUrl"] + '-1.webp';
+                    }
                     rides.push(ride);
                 }
                 if (ride != null && recvRide.time != null) {
@@ -582,6 +521,9 @@ export default class Rides extends React.Component {
         var ride = this.rideMap[newRide.id];
         //New ride added, create new json structure in array and map
         Object.assign(ride, newRide);
+        if (ride.picUrl != ride.officialPicUrl) {
+            this.getSignedUrl(ride.id, ride.picUrl, 1);
+        }
         this.sort(rides, this.state.sortMode, this.state.sortAsc, this.state.rideQuery);
     }
 
