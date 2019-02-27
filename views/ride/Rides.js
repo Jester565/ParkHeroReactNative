@@ -40,6 +40,9 @@ export default class Rides extends React.Component {
         this.signedUrls = {};
         this.signPromises = {};
 
+        this.rideDPsPromises = {};
+        this.rideDPs = {};
+
         this.state = {
             dateTime: null,
             selectedRides: null,
@@ -290,6 +293,96 @@ export default class Rides extends React.Component {
         });
     }
 
+    setRideDPs = (allRideDPs) => {
+        //The dpI system saves time but enforces that all rideDPs have the same intervals (should be true)
+        var dpI = -1;
+        var diffDateTimeStrs = (dtStr1, dtStr2) => {
+            return (dtStr1 != null && dtStr2 != null)? (moment(dtStr1, "YYYY-MM-DD HH:mm:ss").valueOf() - moment(dtStr2, "YYYY-MM-DD HH:mm:ss").valueOf()): null;
+        }
+        var dpDtDiff = null;
+        var dpSelectedDtDiff = null;
+
+        var rides = this.state.rides.slice();
+        for (var rideDPs of allRideDPs) {
+            var rideID = rideDPs.rideID;
+            if (dpI < 0) {
+                dpI = 0;
+                for (var dp of rideDPs.dps) {
+                    var dpDT = moment(dp.dateTime, "YYYY-MM-DD HH:mm:ss");
+                    if (dpDT >= this.state.dateTime) {
+                        break;
+                    }
+                    dpI++;
+                }
+                var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
+                var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
+                dpDtDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.dateTime, prevDP.dateTime): null;
+                dpSelectedDtDiff = (prevDP != null && prevDP.dateTime != null)? (this.state.dateTime.valueOf() - moment(prevDP.dateTime, "YYYY-MM-DD HH:mm:ss")): null
+            }
+            var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
+            var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
+            var fpDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.fastPassTime, prevDP.fastPassTime): null;
+            var fpTime = null;
+            if (fpDiff != null) {
+                fpTime = moment(prevDP.fastPassTime, "YYYY-MM-DD HH:mm:ss");
+                fpTime.add(fpDiff * (dpSelectedDtDiff / dpDtDiff), 'milliseconds');
+                var remainder = 5 - (fpTime.minute() % 5);
+                fpTime.add(remainder, "minutes");
+
+                var lastFastPassDateTime = moment(rideDPs.rideCloseDateTime, "YYYY-MM-DD HH:mm:ss");
+                lastFastPassDateTime.subtract(30, 'minutes');
+                if (fpTime > lastFastPassDateTime) {
+                    fpTime = null;
+                }
+            }
+            var waitMinsDiff = (dp != null && prevDP != null && dp.waitMins != null && prevDP.waitMins != null)? dp.waitMins - prevDP.waitMins: 0;
+            var initialWaitMins = (prevDP != null && prevDP.waitMins != null)? prevDP.waitMins: (dp != null)? dp.waitMins: null;
+            var waitMins = null;
+            if (initialWaitMins != null && dpSelectedDtDiff != null && dpDtDiff != null) {
+                waitMins = initialWaitMins + waitMinsDiff * (dpSelectedDtDiff / dpDtDiff);
+                waitMins = Math.round(waitMins / 5.0) * 5;
+            }
+            var ride = this.rideMap[rideID];
+            ride["waitTimePrediction"] = waitMins;
+            ride["fastPassTimePrediction"] = (fpTime != null)? fpTime.format("HH:mm:ss"): null;
+        }
+        this.setState({
+            rides: rides
+        });
+    }
+
+    refreshRideDPs = (date) => {
+        var dateStr = date.format("YYYY-MM-DD");
+        return new Promise((resolve, reject) => {
+            API.graphql(graphqlOperation(queries.getRideDPs, { date: dateStr })).then((data) => {
+                var rideDPs = data.data.getRideDPs;
+                this.rideDPs[dateStr] = rideDPs;
+                if (this.state.dateTime != null && dateStr == this.getParkDateForDateTime(this.state.dateTime).format("YYYY-MM-DD")) {
+                    this.setRideDPs(rideDPs);
+                }
+            });
+        });
+    }
+
+    updateRideDPs = () => {
+        if (this.state.dateTime != null) {
+            var date = this.getParkDateForDateTime(this.state.dateTime);
+            var dateStr = date.format("YYYY-MM-DD");
+            if (this.rideDPsPromises[dateStr]) {
+                var rideDPs = this.rideDPs[dateStr];
+                if (rideDPs != null) {
+                    this.setRideDPs(rideDPs);
+                }
+            } else {
+                this.rideDPsPromises[dateStr] = this.refreshRideDPs(date);
+            }
+        } else {
+            this.setState({
+                rides: this.state.rides.slice()
+            });
+        }
+    }
+
     refreshSchedules = () => {
         return new Promise((resolve, reject) => {
             API.graphql(graphqlOperation(queries.getSchedules)).then((data) => {
@@ -453,11 +546,14 @@ export default class Rides extends React.Component {
     }
 
     updateDateTime = (dateTime) => {
+        console.log("DATETIME SET: ", dateTime);
         if (dateTime != null) {
             this.refreshWeather(dateTime);
         }
         this.setState({
             dateTime: dateTime
+        }, () => {
+            this.updateRideDPs()
         });
     }
 
@@ -509,10 +605,14 @@ export default class Rides extends React.Component {
     }
 
     openRide = (rideID) => {
+        var dateTime = (this.state.dateTime != null)? this.state.dateTime: moment();
+        var date = this.getParkDateForDateTime(dateTime);
+        var dateStr = date.format("YYYY-MM-DD");
         var ride = this.rideMap[rideID];
         this.props.navigation.navigate('Ride', {
             ride: ride,
-            onRideUpdate: this.onRideUpdate
+            onRideUpdate: this.onRideUpdate,
+            date: dateStr
         });
     }
 
@@ -553,6 +653,7 @@ export default class Rides extends React.Component {
 
                     <RideList 
                         rides={this.state.rides}
+                        predicting={this.state.dateTime != null}
                         filters={this.state.fitlers}
                         activeFilters={this.state.activeFilters}
                         selectedRides={this.state.selectedRides}

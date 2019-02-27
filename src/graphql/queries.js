@@ -45,3 +45,25 @@ export const getWeather = `query GetWeather($date: String) {
   }
 }
 `;
+export const getRideDPs = `query GetRideDPs($date: String!, $rideID: String) {
+  getRideDPs(date: $date, rideID: $rideID) {
+    rideID
+    rideOpenDateTime
+    rideCloseDateTime
+    dps {
+      prediction {
+        waitMins
+        fastPassTime
+      }
+      history {
+        waitMins
+        fastPassTime
+        status
+      }
+      fastPassTime
+      waitMins
+      dateTime
+    }
+  }
+}
+`;

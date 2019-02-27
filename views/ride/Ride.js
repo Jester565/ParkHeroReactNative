@@ -14,6 +14,8 @@ import ImagePicker from 'react-native-image-picker';
 import Collapsible from 'react-native-collapsible';
 import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
+import WaitTimeChart from './WaitTimeChart';
+import FastPassChart from './FastPassChart';
 
 Amplify.configure(AwsExports);
 
@@ -45,6 +47,9 @@ export default class Ride extends React.Component {
         this.signedUrls = {};
         this.signPromises = {};
 
+        var dateStr = navigation.getParam('date', null);
+        var date = moment(dateStr, "YYYY-MM-DD");
+
         var pics = this.getPics(ride);
 
         this.state = {
@@ -54,7 +59,50 @@ export default class Ride extends React.Component {
             pics: pics,
             officialPics: pics,
             selectedPicI: 0,
-            showEditing: false
+            showEditing: false,
+            date: date,
+            dps: null
+        }
+
+        this.rideDPsPromises = {};
+        this.rideDPs = {};
+    }
+
+    componentWillMount() {
+        this.updateRideDPs(this.state.ride.id, this.state.date);
+    }
+
+    updateRideDPs = (rideID, date) => {
+        var dateStr = date.format("YYYY-MM-DD");
+        if (this.rideDPsPromises[dateStr] != null) {
+            var rideDPs = this.rideDPs[dateStr];
+            if (rideDPs != null) {
+                this.setRideDPs(rideDPs);
+            }
+        } else {
+            this.rideDPsPromises[dateStr] = this.refreshRideDPs(rideID, date);
+        }
+    }
+
+    refreshRideDPs = (rideID, date) => {
+        var dateStr = date.format("YYYY-MM-DD");
+        return new Promise((resolve, reject) => {
+            API.graphql(graphqlOperation(queries.getRideDPs, { rideID: rideID, date: dateStr })).then((data) => {
+                var rideDPs = data.data.getRideDPs;
+                console.log("RESULT: ", JSON.stringify(rideDPs));
+                this.rideDPs[dateStr] = rideDPs;
+                if (this.state.date.format("YYYY-MM-DD") == dateStr) {
+                    this.setRideDPs(rideDPs);
+                }
+            });
+        });
+    }
+
+    setRideDPs = (rideDPs) => {
+        if (rideDPs != null && rideDPs.length > 0) {
+            this.setState({
+                dps: rideDPs[0].dps
+            });
         }
     }
 
@@ -451,6 +499,9 @@ export default class Ride extends React.Component {
         }
 
         var fontSize = 30;
+
+        var shouldRenderWaitTimes = (this.state.dps != null);
+        var shouldRenderFastPasses = (this.state.dps != null && this.state.ride.labels.indexOf("FASTPASS") >= 0);
         return (<View>
             <ScrollView ref="_scrollView">
                 <View>
@@ -575,7 +626,7 @@ export default class Ride extends React.Component {
                         </Text>
                     </View>
                 </View>
-                <View style={{ width: "100%", flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center', marginBottom: 80 }}>
+                <View style={{ width: "100%", flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center', marginBottom: 15, paddingBottom: 15, borderBottomWidth: (shouldRenderWaitTimes != null)? 4: 0, borderColor: 'rgba(0, 0, 0, .4)' }}>
                     <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
                         <Text style={{textAlign: 'center', fontSize: fontSize * 0.7, color: Theme.PRIMARY_FOREGROUND}}>
                             Labels
@@ -585,6 +636,45 @@ export default class Ride extends React.Component {
                         </Text>
                     </View>
                 </View>
+                {
+                    (shouldRenderWaitTimes)? (
+                        <View style={{
+                            width: "100%", 
+                            flexDirection: 'column', 
+                            alignContent: 'center', 
+                            height: 400,
+                            marginBottom: 15, 
+                            paddingBottom: 15, 
+                            borderBottomWidth: (shouldRenderFastPasses)? 4: 0, 
+                            borderColor: 'rgba(0, 0, 0, .4)'
+                        }}>
+                            <View style={{justifyContent: 'center', alignItems: 'center'}}>
+                                <Text style={{textAlign: 'center', fontSize: fontSize * 0.7, color: Theme.PRIMARY_FOREGROUND}}>
+                                    Wait Times
+                                </Text>
+                            </View>
+                            <WaitTimeChart dps={this.state.dps} />
+                        </View>
+                    ): null
+                }
+                {
+                    (shouldRenderFastPasses)? (
+                        <View style={{
+                            height: 400,
+                            width: "100%", 
+                            flexDirection: 'column',
+                            alignContent: 'center'
+                        }}>
+                            <View style={{justifyContent: 'center', alignItems: 'center'}}>
+                                <Text style={{textAlign: 'center', fontSize: fontSize * 0.7, color: Theme.PRIMARY_FOREGROUND}}>
+                                    FastPass Times
+                                </Text>
+                            </View>
+                            <FastPassChart dps={this.state.dps} />
+                        </View>
+                    ): null
+                }
+                <View style={{height: 75}} />
             </ScrollView>
             <Animatable.View 
             ref="_editIcon"

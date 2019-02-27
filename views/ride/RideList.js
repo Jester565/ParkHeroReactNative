@@ -46,10 +46,10 @@ export default class RideList extends React.Component {
             id={ride.id}
             visible={ride.visible}
             selected={ride.selected}
-            waitTime={ride.waitTime}
-            fastPassTime={ride.fastPassTime}
-            waitRating={ride.waitRating}
-            status={ride.status}
+            waitTime={(!this.props.predicting)? ride.waitTime: ride.waitTimePrediction}
+            fastPassTime={(!this.props.predicting)? ride.fastPassTime: ride.fastPassTimePrediction}
+            waitRating={(!this.props.predicting)? ride.waitRating: 5}
+            status={(!this.props.predicting)? ride.status: "--"}
             name={ride.name}
             signedPicUrl={ride.signedPicUrl}
             onLongPress={this.onRideLongPressed}

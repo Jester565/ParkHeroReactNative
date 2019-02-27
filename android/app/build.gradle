@@ -89,6 +89,7 @@ dependencies {
     implementation "com.facebook.react:react-native:+"
     implementation(project(":react-native-google-signin"))
     implementation project(':react-native-fast-image')
+    implementation project(':react-native-charts-wrapper')
 }
 
 
