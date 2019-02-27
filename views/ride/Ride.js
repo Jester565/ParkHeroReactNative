@@ -101,7 +101,8 @@ export default class Ride extends React.Component {
     setRideDPs = (rideDPs) => {
         if (rideDPs != null && rideDPs.length > 0) {
             this.setState({
-                dps: rideDPs[0].dps
+                dps: rideDPs[0].dps,
+                rideCloseDateTime: rideDPs[0].rideCloseDateTime
             });
         }
     }
@@ -670,7 +671,7 @@ export default class Ride extends React.Component {
                                     FastPass Times
                                 </Text>
                             </View>
-                            <FastPassChart dps={this.state.dps} />
+                            <FastPassChart dps={this.state.dps} rideCloseDateTime={this.state.rideCloseDateTime} />
                         </View>
                     ): null
                 }

@@ -64,17 +64,19 @@ export default class FastPassChart extends React.Component {
 
     componentWillMount() {
         if (this.props.dps != null) {
-            this.setGraphData(this.props.dps);
+            this.setGraphData(this.props.dps, this.props.rideCloseDateTime);
         }
     }
 
     componentWillReceiveProps(newProps) {
         if (newProps.dps != null) {
-            this.setGraphData(newProps.dps);
+            this.setGraphData(newProps.dps, newProps.rideCloseDateTime);
         }
     }
 
-    setGraphData = (dps) => {
+    setGraphData = (dps, rideCloseDateTime) => {
+        var fpMaximum = moment(rideCloseDateTime, "YYYY-MM-DD HH:mm:ss");
+        fpMaximum.subtract(30, 'minutes');
         var predictionValues = [];
         var historicalValues = [];
         for (var dp of dps) {
@@ -145,6 +147,13 @@ export default class FastPassChart extends React.Component {
                 data: {
                     $set: {
                         dataSets: dataSets
+                    }
+                },
+                yAxis: {
+                    left: {
+                        $merge: {
+                            axisMaximum: fpMaximum.valueOf()
+                        }
                     }
                 }
             }));
