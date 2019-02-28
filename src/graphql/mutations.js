@@ -61,3 +61,23 @@ export const updateCustomRideInfo = `mutation UpdateCustomRideInfo(
   }
 }
 `;
+export const verifySns = `mutation VerifySns($token: String!, $endpointArn: String) {
+  verifySns(token: $token, endpointArn: $endpointArn)
+}
+`;
+export const updateFilter = `mutation UpdateFilter(
+  $filterName: String
+  $rideIDs: [String]
+  $watchConfig: WatchConfigInput
+) {
+  updateFilter(
+    filterName: $filterName
+    rideIDs: $rideIDs
+    watchConfig: $watchConfig
+  )
+}
+`;
+export const deleteFilters = `mutation DeleteFilters($filterNames: [String]) {
+  deleteFilters(filterNames: $filterNames)
+}
+`;

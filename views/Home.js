@@ -22,6 +22,10 @@ export default class Home extends React.Component {
         }
     }
 
+    onSignIn = (authenticated, user) => {
+        this.setState({ signedIn: true });
+    }
+
     render() {
         var tabs = [{
             iconSource: require('../assets/partys.png'),
@@ -47,7 +51,7 @@ export default class Home extends React.Component {
                     <Text>Party</Text>
                 </View>
                 <View style={{height: "100%", width: "100%"}}>
-                    <Authenticator onSignIn={() => { this.setState({ signedIn: true }); }} />
+                    <Authenticator onSignIn={this.onSignIn} />
                 </View>
                 <View style={{height: "100%", width: "100%"}}>
                     {

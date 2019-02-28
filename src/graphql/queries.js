@@ -67,3 +67,15 @@ export const getRideDPs = `query GetRideDPs($date: String!, $rideID: String) {
   }
 }
 `;
+export const getFilters = `query GetFilters {
+  getFilters {
+    name
+    rideIDs
+    watchConfig {
+      waitTime
+      waitRating
+      fastPassTime
+    }
+  }
+}
+`;
