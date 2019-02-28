@@ -69,6 +69,7 @@ export default class Rides extends React.Component {
         var schedulePromise = this.refreshSchedules();
         //this.refreshPasses(schedulePromise);
         this.refreshWeather(moment());
+        this.refreshFilters();
     }
 
     getSignedUrl = (rideID, url, sizeI) => {
@@ -207,7 +208,13 @@ export default class Rides extends React.Component {
             filters: filters
         });
 
-        //TODO: Make save filter request
+        API.graphql(graphqlOperation(mutations.updateFilter, { 
+            filterName: filter.filterID, 
+            rideIDs: Object.keys(filter.rideIDs),
+            watchConfig: notifyConfig
+        })).then((data) => {
+            console.log("WATCH FILTER"); 
+        });
     }
 
     unwatchFilter = (filterID) => {
@@ -218,13 +225,21 @@ export default class Rides extends React.Component {
             filters: filters
         });
 
-        //TODO: Make save filter request
+        API.graphql(graphqlOperation(mutations.updateFilter, { 
+            filterName: filter.filterID, 
+            rideIDs: Object.keys(filter.rideIDs),
+            watchConfig: null
+        })).then((data) => {
+            console.log("UNWATCH FILTER"); 
+        });
     }
 
     deleteFilters = (deleteFilters) => {
         var filters = this.state.filters;
         var activeFilters = this.state.activeFilters;
+        var filterNames = [];
         for (var filter of deleteFilters) {
+            filterNames.push(filter.filterID);
             if (activeFilters != null) {
                 delete activeFilters[filter.filterID];
             }
@@ -234,8 +249,10 @@ export default class Rides extends React.Component {
             filter: filters,
             activeFilters: activeFilters
         });
-
-        //TODO: Make save filter request
+    
+        API.graphql(graphqlOperation(mutations.deleteFilters, { filterNames: filterNames })).then((data) => {
+            console.log("DELETE FILTERS"); 
+        });
     }
 
     saveFilter = () => {
@@ -255,7 +272,13 @@ export default class Rides extends React.Component {
             filterName: ''
         });
 
-        //TODO: Make save filter request
+        API.graphql(graphqlOperation(mutations.updateFilter, { 
+            filterName: filter.filterID, 
+            rideIDs: Object.keys(filter.rideIDs),
+            watchConfig: filter.notifyConfig 
+        })).then((data) => {
+            console.log("UPDATE FILTER"); 
+        });
     }
 
     getParkDateForDateTime = (dateTime) => {
@@ -348,6 +371,28 @@ export default class Rides extends React.Component {
         }
         this.setState({
             rides: rides
+        });
+    }
+
+    refreshFilters = () => {
+        API.graphql(graphqlOperation(queries.getFilters)).then((data) => {
+            var filters = data.data.getFilters;
+            var localFilters = {};
+            for (var filter of filters) {
+                var rideIDsMap = {};
+                for (var rideID of filter.rideIDs) {
+                    rideIDsMap[rideID] = true;
+                }
+                localFilters[filter.name] = {
+                    key: filter.name,
+                    filterID: filter.name,
+                    rideIDs: rideIDsMap,
+                    notifyConfig: filter.watchConfig
+                };
+            }
+            this.setState({
+                filters: localFilters
+            });
         });
     }
 
