@@ -61,8 +61,21 @@ export const updateCustomRideInfo = `mutation UpdateCustomRideInfo(
   }
 }
 `;
-export const verifySns = `mutation VerifySns($token: String!, $endpointArn: String) {
-  verifySns(token: $token, endpointArn: $endpointArn)
+export const verifySns = `mutation VerifySns(
+  $token: String!
+  $endpointArn: String
+  $subscriptionArn: String
+  $endpointUserID: String
+) {
+  verifySns(
+    token: $token
+    endpointArn: $endpointArn
+    subscriptionArn: $subscriptionArn
+    endpointUserID: $endpointUserID
+  ) {
+    endpointArn
+    subscriptionArn
+  }
 }
 `;
 export const updateFilter = `mutation UpdateFilter(

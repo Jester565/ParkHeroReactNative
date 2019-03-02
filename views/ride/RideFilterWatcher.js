@@ -30,7 +30,7 @@ export default class RideFilterWatcher extends React.Component {
         }
         var watchFastPass = getNotifyConfigValue('fastPassTime');
         if (watchFastPass.length > 0) {
-            watchFastPass = moment(watchFastPass, 'HH:mm:ss').format('h:mm A');
+            watchFastPass = moment(watchFastPass, 'YYYY-MM-DD HH:mm:ss').format('h:mm A');
         }
         this.setState({
             rating: getNotifyConfigValue('waitRating'),
@@ -41,7 +41,7 @@ export default class RideFilterWatcher extends React.Component {
     }
 
     onWatch = () => {
-        var fastPassTime = (this.state.fastPass.length > 0)? moment(this.state.fastPass, 'h:mm A').format('HH:mm:ss'): null;
+        var fastPassTime = (this.state.fastPass.length > 0)? moment(this.state.fastPass, 'h:mm A').format('YYYY-MM-DD HH:mm:ss'): null;
         var notifyConfig = {
             waitRating: (this.state.rating.length > 0)? this.state.rating: null,
             waitTime: (this.state.wait.length > 0)? this.state.wait: null,

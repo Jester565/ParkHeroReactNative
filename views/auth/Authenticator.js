@@ -110,30 +110,36 @@ export default class Authenticator extends React.Component {
                     console.log("PUSH ERROR: ", err);
                 },
     
-                // (optional) Called when Token is generated (iOS and Android)
                 onRegister: (token) => {
                     console.log("ON REGISTER: ", token);
-                    AsyncStorage.getItem("endpointArn").then((endpointArn) => {
-                        console.log("STORED EP ARN: ", endpointArn);
-                        API.graphql(graphqlOperation(mutations.verifySns, { token: token, endpointArn: endpointArn })).then((data) => {
-                            console.log("RES EPARN: ", data.data.verifySns);
-                            AsyncStorage.setItem("endpointArn", data.data.verifySns);
+                    var getPromises = [
+                        AsyncStorage.getItem("endpointUserID"),
+                        AsyncStorage.getItem("endpointArn"),
+                        AsyncStorage.getItem("subscriptionArn")
+                    ]
+                    Promise.all(getPromises).then((values) => {
+                        var endpointUserID = values[0];
+                        var endpointArn = values[1];
+                        var subscriptionArn = values[2];
+                        API.graphql(graphqlOperation(mutations.verifySns, { 
+                            token: token.token, 
+                            endpointArn: endpointArn,
+                            endpointUserID: endpointUserID,
+                            subscriptionArn: subscriptionArn })).then((data) => {
+                                AsyncStorage.setItem("endpointUserID", user.id);
+                                AsyncStorage.setItem("endpointArn", data.data.verifySns.endpointArn);
+                                AsyncStorage.setItem("subscriptionArn", data.data.verifySns.subscriptionArn);
                         });
-                    });
+                    })
                 },
             
                 // (required) Called when a remote or local notification is opened or received
                 onNotification: (notification) => {
                     console.log( 'NOTIFICATION:', notification );
-            
-                    // process the notification
-            
-                    // required on iOS only (see fetchCompletionHandler docs: https://facebook.github.io/react-native/docs/pushnotificationios.html)
-                    notification.finish(PushNotificationIOS.FetchResult.NoData);
                 },
             
                 // ANDROID ONLY: GCM or FCM Sender ID (product_number) (optional - not required for local notifications, but is need to receive remote push notifications)
-                senderID: "420613559591",
+                senderID: "484305592931",
             
                 // IOS ONLY (optional): default: all - Permissions to register.
                 permissions: {
