@@ -63,7 +63,7 @@ PushNotification.configure({
             PushNotification.localNotification({
                 title: "Watch Update",
                 message: "Tiny Chungus",
-                soundName: "entrywhistle.mp3",
+                soundName: "entrywhistle.mp3"
             });
         }
     },
