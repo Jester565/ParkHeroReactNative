@@ -9,6 +9,7 @@ import { Hub, API, graphqlOperation } from 'aws-amplify';
 var PushNotification = require('react-native-push-notification');
 import {AsyncStorage} from 'react-native';
 import * as mutations from '../src/graphql/mutations';
+import moment from 'moment';
 
 Amplify.configure(AwsExports);
 
@@ -28,8 +29,8 @@ function RegisterSns(token, user) {
         API.graphql(graphqlOperation(mutations.verifySns, { 
             token: token, 
             endpointArn: endpointArn,
-            endpointUserID: null,
-            subscriptionArn: null })).then((data) => {
+            endpointUserID: endpointUserID,
+            subscriptionArn: subscriptionArn })).then((data) => {
                 AsyncStorage.setItem("endpointUserID", user.id);
                 AsyncStorage.setItem("endpointArn", data.data.verifySns.endpointArn);
                 AsyncStorage.setItem("subscriptionArn", data.data.verifySns.subscriptionArn);
@@ -55,16 +56,46 @@ PushNotification.configure({
         console.log("NOTIFICATION: ", JSON.stringify(notification));
         //Don't continue on local notifications
         
-        var msg = notification.default;
-        if (msg != null) {
-            Hub.dispatch(msg.type, msg.payload, 'Notification');
+        if (notification.default != null) {
+            var data = JSON.parse(notification.default);
+            console.log("DATA: ", JSON.stringify(data, null ,2));
+            var soundName = "entrywhistle.mp3";
+            if (data != null) {                
+                Hub.dispatch(data.type, data.payload, 'Notification');
+                var payload = data.payload;
+                var msg = "";
+                for (var update of payload.updates) {
+                    if (update.rideID == "353303") {
+                        soundName = "incredi.mp3";
+                    } else if (update.rideID == "16514416") {
+                        soundName = "cars.mp3";
+                    }
+                    if (msg.length > 0) {
+                        msg += "\n";
+                    }
+                    var fieldSet = false;
+                    msg += update.rideName;
+                    if (update.waitMins != null) {
+                        msg += "'s wait is " + update.waitMins.updated.toString() + " mins";
+                        fieldSet = true;
+                    } else if (update.waitRating != null && update.waitMins == null) {
+                        msg += (fieldSet? ", ": "'s ") + "wait is " + update.waitRating.updated.toString() + " mins";
+                        fieldSet = true;
+                    } else if (update.fastPassTime != null) {
+                        msg += (fieldSet? ", ": "'s ") + "FastPass is at " + moment(update.fastPassTime.updated, "YYYY-MM-DD HH:mm:ss").format("h:mm A")
+                        fieldSet = true;
+                    } else if (update.closedMins != null) {
+                        msg += (fieldSet? ", ": " ") + "opened after " + update.closedMins.toString()
+                    }
+                }
 
-            console.log("CREATING LOCAL NOTIFICATION");
-            PushNotification.localNotification({
-                title: "Watch Update",
-                message: "Tiny Chungus",
-                soundName: "entrywhistle.mp3"
-            });
+                console.log("CREATING LOCAL NOTIFICATION: " + msg);
+                PushNotification.localNotification({
+                    title: "Ride Update",
+                    message: msg,
+                    soundName: soundName
+                });
+            }
         }
     },
 
