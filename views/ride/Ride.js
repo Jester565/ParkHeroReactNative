@@ -1,5 +1,5 @@
 import React from 'react';
-import { ScrollView, View, TouchableOpacity, Text } from 'react-native';
+import { ScrollView, View, TouchableOpacity, Text, Image } from 'react-native';
 import { FormInput, Button, Icon } from 'react-native-elements';
 import { CachedImage } from 'react-native-cached-image';
 import { Dimensions } from 'react-native';
@@ -16,8 +16,19 @@ import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
 import WaitTimeChart from './WaitTimeChart';
 import FastPassChart from './FastPassChart';
+import Matterhorn from '../customride/Matterhorn';
 
 Amplify.configure(AwsExports);
+
+var CUSTOM_RIDE_VIEW_URLS = {
+    "353377": "matterhorn_custom_view"
+};
+
+var CUSTOM_RIDE_URL_RENDERS = {
+    "matterhorn_custom_view": () => {
+        return <Matterhorn width={310} />;
+    }
+}
 
 export default class Ride extends React.Component {
     static navigationOptions = {
@@ -110,25 +121,49 @@ export default class Ride extends React.Component {
     getPics = (ride) => {
         var picUrls = (ride.customPicUrls != null)? ride.customPicUrls: [ride.picUrl];
         var pics = [];
+        var containsCustomPic = false;
+        for (var picUrl of picUrls) {
+            if (picUrl == CUSTOM_RIDE_VIEW_URLS[ride.id]) {
+                containsCustomPic = true;
+                break;
+            }
+        }
+        //If Matterhorn
+        if (!containsCustomPic && CUSTOM_RIDE_VIEW_URLS[ride.id] != null) {
+            picUrls.unshift(CUSTOM_RIDE_VIEW_URLS[ride.id]);
+        }
+
         picUrls.forEach((picUrl, i) => {
-            var pic = {
-                key: picUrl,
-                public: (picUrl == ride.officialPicUrl),
-                url: picUrl,
-                urls: [],
-                keys: [],
-                signedUrls: [],
-                selected: (i == 0),
-                local: false
-            };
-            for (var i = 0; i < 4; i++) {
-                var key = pic.url + '-' + i.toString() + '.webp';
-                pic.urls.push('https://s3-us-west-2.amazonaws.com/disneyapp3/' + key);
-                pic.keys.push(key);
-                pic.signedUrls.push(this.signedUrls[key]);
+            var pic = null;
+            if (CUSTOM_RIDE_VIEW_URLS[ride.id] == picUrl) {
+                pic = {
+                    key: picUrl,
+                    public: true,
+                    url: picUrl,
+                    selected: (i == 0),
+                    customView: true
+                }
+            } else {
+                pic = {
+                    key: picUrl,
+                    public: (picUrl == ride.officialPicUrl),
+                    url: picUrl,
+                    urls: [],
+                    keys: [],
+                    signedUrls: [],
+                    selected: (i == 0),
+                    local: false,
+                }
+                for (var i = 0; i < 4; i++) {
+                    var key = pic.url + '-' + i.toString() + '.webp';
+                    pic.urls.push('https://s3-us-west-2.amazonaws.com/disneyapp3/' + key);
+                    pic.keys.push(key);
+                    pic.signedUrls.push(this.signedUrls[key]);
+                }
             }
             pics.push(pic);
         });
+
         return pics;
     }
 
@@ -141,10 +176,8 @@ export default class Ride extends React.Component {
         }
         var key = iPic.keys[sizeI];
         if (this.signPromises[key] != null) {
-            console.log("RETURN: ", iPic.signedUrls[sizeI]);
             return iPic.signedUrls[sizeI];
         }
-        console.log("GET: ", key);
         var getPromise = Storage.get(key, { 
             level: 'public',
             customPrefix: {
@@ -152,7 +185,6 @@ export default class Ride extends React.Component {
         }});
         this.signPromises[key] = getPromise;
         getPromise.then((signedUrl) => {
-            console.log("GOT: ", signedUrl);
             this.signedUrls[key] = signedUrl;
             var picI = null;
             this.state.pics.forEach((pic, i) => {
@@ -217,10 +249,12 @@ export default class Ride extends React.Component {
             var customName = this.state.name;
             var picPayload = [];
             this.state.pics.forEach((pic, i) => {
-                picPayload.push({
-                    url: pic.url,
-                    added: pic.local
-                });
+                if (i != 0 || pic.url != CUSTOM_RIDE_VIEW_URLS[ride.id]) {
+                    picPayload.push({
+                        url: pic.url,
+                        added: pic.local
+                    });
+                }
             });
             API.graphql(graphqlOperation(mutations.updateCustomRideInfo, { 
                 rideID: ride.id, 
@@ -341,7 +375,7 @@ export default class Ride extends React.Component {
     
     renderSmallPic = ({ item, index, move, moveEnd, isActive }) => {
         var pic = item;
-        var smallPicUrl = this.getSignedUrl(1, pic);
+        var smallPicUrl = (!pic.customView)? this.getSignedUrl(1, pic): null;
         var backgroundColor = Theme.PRIMARY_BACKGROUND;
         if (isActive) {
             backgroundColor = 'blue';
@@ -362,12 +396,24 @@ export default class Ride extends React.Component {
         onLongPress={move}
         onPressOut={moveEnd}
         onMoveEnd={({ data }) => this.setState({ data })}>
-            <CachedImage
-                style={{ 
-                    width: 100,
-                    height: 100 }}
-                resizeMode={'cover'} 
-                source={{uri: smallPicUrl}} />
+            {
+                (!pic.customView)? (
+                    <CachedImage
+                    style={{ 
+                        width: 100,
+                        height: 100 }}
+                    resizeMode={'cover'} 
+                    source={{uri: smallPicUrl}} />
+                ): <Image
+                    style={{ 
+                        width: 100,
+                        height: 100 
+                    }}
+                    source={require('../../assets/ride.png')}
+                    resizeMode={'contain'} 
+                    />
+            }
+            
         </TouchableOpacity>);
     }
 
@@ -392,6 +438,12 @@ export default class Ride extends React.Component {
             onPageSelected={this.onPageSelected}>
                 {
                     (this.state.pics.map((pic) => {
+                        if (pic.customView) {
+                            var view = CUSTOM_RIDE_URL_RENDERS[pic.url]();
+                            return (<View>
+                                {view}
+                            </View>);
+                        }
                         var miniPicUrl = this.getSignedUrl(0, pic);
                         var largePicUrl = this.getSignedUrl(3, pic);
 
