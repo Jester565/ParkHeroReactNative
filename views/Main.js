@@ -2,14 +2,21 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import AwsExports from '../AwsExports';
 import Rides from './ride/Rides';
-import Authenticator from './auth/Authenticator';
-import Amplify, { Auth } from 'aws-amplify';
+import Home from './home/Home';
 import { ViewPager, IndicatorViewPager, PagerTabIndicator } from 'rn-viewpager';
-import { Hub, API, graphqlOperation } from 'aws-amplify';
+import Amplify, { Auth, Hub, API, graphqlOperation } from 'aws-amplify';
 var PushNotification = require('react-native-push-notification');
 import {AsyncStorage} from 'react-native';
 import * as mutations from '../src/graphql/mutations';
 import moment from 'moment';
+import { GoogleSignin } from 'react-native-google-signin';
+
+Amplify.configure(AwsExports);
+
+//Init to get profile and email
+GoogleSignin.configure({
+    webClientId: "484305592931-sm009q5ug5hhsn174uka9f2tmt17re8l.apps.googleusercontent.com"
+});
 
 Amplify.configure(AwsExports);
 
@@ -17,15 +24,15 @@ var User = null;
 var SnsToken = null;
 
 function RegisterSns(token, user) {
-    var getPromises = [
+        var getPromises = [
         AsyncStorage.getItem("endpointUserID"),
         AsyncStorage.getItem("endpointArn"),
         AsyncStorage.getItem("subscriptionArn")
     ];
     Promise.all(getPromises).then((values) => {
-        var endpointUserID = values[0];
-        var endpointArn = values[1];
-        var subscriptionArn = values[2];
+                var endpointUserID = values[0];
+                var endpointArn = values[1];
+                var subscriptionArn = values[2];
         API.graphql(graphqlOperation(mutations.verifySns, { 
             token: token, 
             endpointArn: endpointArn,
@@ -57,13 +64,13 @@ PushNotification.configure({
         //Don't continue on local notifications
         
         if (notification.default != null) {
-            var data = JSON.parse(notification.default);
+                        var data = JSON.parse(notification.default);
             console.log("DATA: ", JSON.stringify(data, null ,2));
-            var soundName = "entrywhistle.mp3";
+                        var soundName = "entrywhistle.mp3";
             if (data != null) {                
                 Hub.dispatch(data.type, data.payload, 'Notification');
-                var payload = data.payload;
-                var msg = "";
+                                var payload = data.payload;
+                                var msg = "";
                 for (var update of payload.updates) {
                     if (update.rideID == "353303") {
                         soundName = "incredi.mp3";
@@ -73,7 +80,7 @@ PushNotification.configure({
                     if (msg.length > 0) {
                         msg += "\n";
                     }
-                    var fieldSet = false;
+                                        var fieldSet = false;
                     msg += update.rideName;
                     if (update.waitMins != null) {
                         msg += "'s wait is " + update.waitMins.updated.toString() + " mins";
@@ -121,9 +128,9 @@ PushNotification.configure({
     requestPermissions: true,
 });
 
-export default class Home extends React.Component {
+export default class Main extends React.Component {
     static navigationOptions = {
-        title: 'Home',
+        title: 'Main',
         header: null
     };
 
@@ -133,18 +140,72 @@ export default class Home extends React.Component {
         this.state = {
             signedIn: false
         };
+
+        this.silentSignIn();
     }
 
-    onSignIn = (authenticated, user) => {
-        User = user;
-        if (SnsToken != null) {
-            RegisterSns(SnsToken, User);
+    silentSignIn() {
+                var googleSilentSignIn = async() => {
+            const userInfo = await GoogleSignin.signInSilently();
+                        var idToken = userInfo.idToken;
+            await Auth.federatedSignIn(
+                "accounts.google.com",
+                { 
+                    token: idToken
+                }
+            );
         }
-        this.setState({ signedIn: true });
+        googleSilentSignIn().then(() => {
+            console.log("GOOGLE SIGN IN");
+            this.onSignIn(true);
+        }).catch((e) => {
+            Auth.currentSession()
+            .then(() => {
+                console.log("REUSE SIGN IN");
+                this.onSignIn(true);
+            }).catch((err) => {
+                console.log("User is unauthenticated!");
+                this.onSignIn(false);
+            });
+        });
+    }
+
+    onSignIn = (authenticated, username) => {
+        API.graphql(graphqlOperation(mutations.createUser, { name: username })).then((data) => {
+                        var user = data.data.createUser;
+            User = user;
+            if (SnsToken != null) {
+                RegisterSns(SnsToken, User);
+            }
+            this.setState({ 
+                signedIn: true,
+                authenticated: authenticated
+            });
+        });
+    }
+
+    signOut = () => {
+                var onGoogleSignOut = () => {
+            Auth.signOut()
+            .then(data => {
+                this.silentSignIn();
+            }).catch(err => console.log(err));
+        }
+        GoogleSignin.isSignedIn().then((signedIn) => {
+            if (signedIn) {
+                GoogleSignin.revokeAccess().then(() => {
+                    GoogleSignin.signOut().then(() => {
+                        onGoogleSignOut();
+                    })
+                });
+            } else {
+                onGoogleSignOut();
+            }
+        });
     }
 
     onNotification = (notification) => {
-        var msg = notification.default;
+                var msg = notification.default;
         Hub.dispatch(msg.type, msg.payload, 'Notification');
 
         PushNotification.localNotification({
@@ -153,7 +214,7 @@ export default class Home extends React.Component {
     }
 
     render() {
-        var tabs = [{
+                var tabs = [{
             iconSource: require('../assets/partys.png'),
             selectedIconSource: require('../assets/party.png')
         },
@@ -177,9 +238,17 @@ export default class Home extends React.Component {
                     <Text>Party</Text>
                 </View>
                 <View style={{height: "100%", width: "100%"}}>
-                    <Authenticator 
-                        onSignIn={this.onSignIn}
-                        onNotification={this.onNotification} />
+                    {
+                        (this.state.signedIn)?
+                        (
+                            <Home
+                                user={User}
+                                authenticated={this.state.authenticated}
+                                onSignIn={this.onSignIn}
+                                signOut={this.signOut}
+                                navigation={this.props.navigation} />
+                        ): null
+                    }
                 </View>
                 <View style={{height: "100%", width: "100%"}}>
                     {

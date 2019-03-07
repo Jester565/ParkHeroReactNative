@@ -10,7 +10,6 @@ import { GoogleSignin, GoogleSigninButton, statusCodes } from 'react-native-goog
 import * as Animatable from 'react-native-animatable';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth, API, graphqlOperation } from 'aws-amplify';
-import * as mutations from '../../src/graphql/mutations';
 
 Amplify.configure(AwsExports);
 
@@ -51,33 +50,7 @@ export default class Authenticator extends React.Component {
     }
 
     componentWillMount() {
-        this.silentSignIn();
-    }
-
-    silentSignIn() {
-        var googleSilentSignIn = async() => {
-            const userInfo = await GoogleSignin.signInSilently();
-            var idToken = userInfo.idToken;
-            await Auth.federatedSignIn(
-                "accounts.google.com",
-                { 
-                    token: idToken
-                }
-            );
-        }
-        googleSilentSignIn().then(() => {
-            console.log("GOOGLE SIGN IN");
-            this.onSignIn(true);
-        }).catch((e) => {
-            Auth.currentSession()
-            .then(() => {
-                console.log("REUSE SIGN IN");
-                this.onSignIn(true);
-            }).catch((err) => {
-                console.log("User is unauthenticated!");
-                this.onSignIn(false);
-            });
-        });
+        
     }
 
     //Fired when user presses Google Sign In Button
@@ -100,11 +73,13 @@ export default class Authenticator extends React.Component {
 
     //Sign in refers to any method of authentication
     onSignIn = (authenticated, username) => {
-        console.log("On Sign In!");
-        API.graphql(graphqlOperation(mutations.createUser, { name: username })).then((data) => {
-            var user = data.data.createUser;
-            this.props.onSignIn(authenticated, user);
-        });
+        const { navigation } = this.props;
+        var onSignIn = navigation.getParam('onSignIn', null);
+
+        console.log("ON SIGN IN");
+        onSignIn(authenticated, username);
+        console.log("GO BACK");
+        navigation.goBack();
     }
 
     //Change page to login, signup, or google

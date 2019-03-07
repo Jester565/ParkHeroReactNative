@@ -25,6 +25,7 @@ android {
         ndk {
             abiFilters "armeabi-v7a", "x86"
         }
+        vectorDrawables.useSupportLibrary = true
     }
     signingConfigs {
         debug {
@@ -75,6 +76,7 @@ android {
 }
 
 dependencies {
+    compile project(':react-native-image-crop-picker')
     compile project(':react-native-push-notification')
     compile project(':react-native-image-picker')
     compile project(':rn-fetch-blob')
