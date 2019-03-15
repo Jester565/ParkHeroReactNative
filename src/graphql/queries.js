@@ -79,3 +79,44 @@ export const getFilters = `query GetFilters {
   }
 }
 `;
+export const getUserPasses = `query GetUserPasses {
+  getUserPasses {
+    user {
+      id
+      name
+      profilePicUrl
+    }
+    passes {
+      id
+      name
+      type
+      expirationDT
+      isPrimary
+      isEnabled
+      hasMaxPass
+    }
+  }
+}
+`;
+export const getPartyPasses = `query GetPartyPasses {
+  getPartyPasses {
+    userPasses {
+      user {
+        id
+        name
+        profilePicUrl
+      }
+      passes {
+        id
+        name
+        type
+        expirationDT
+        isPrimary
+        isEnabled
+        hasMaxPass
+      }
+    }
+    splitters
+  }
+}
+`;

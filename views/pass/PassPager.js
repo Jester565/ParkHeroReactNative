@@ -4,12 +4,15 @@ import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Ico
 import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
 import Collapsible from 'react-native-collapsible';
 import AwsExports from '../../AwsExports';
-import Amplify, { Storage } from 'aws-amplify';
 import { PagerDotIndicator, IndicatorViewPager } from 'rn-viewpager';
 import Barcode from 'react-native-barcode-builder';
 import Theme from '../../Theme';
 import moment from 'moment';
 import * as Animatable from 'react-native-animatable';
+import * as queries from '../../src/graphql/queries';
+import * as mutations from '../../src/graphql/mutations';
+import * as subscriptions from '../../src/graphql/subscriptions';
+import Amplify, { API, graphqlOperation } from 'aws-amplify';
 
 Amplify.configure(AwsExports);
 
@@ -37,6 +40,35 @@ export default class PassPager extends React.Component {
         this.PASS_HEIGHT = 150;
         this.FONT_SIZE = 14;
         this.ANIMATION_DURATION = 250;
+    }
+
+    componentWillMount() {
+        if (this.props.groupID != null) {
+            this.subToSplitters();
+        }
+    }
+
+    componentWillUnmount() {
+        if (this.props.groupID != null) {
+            this.unsubFromSplitters();
+        }
+    }
+
+    subToSplitters = () => {
+        this.splitSubscription = API.graphql(
+            graphqlOperation(subscriptions.subUpdateSplitters, { groupID: this.props.groupID })
+        ).subscribe({
+            next: (data) => {
+                var splitters = data.data.subUpdateSplitters.splitters;
+                this.onSplitterUpdate(splitters);
+            }
+        });
+    }
+
+    unsubFromSplitters = () => {
+        if (this.splitSubscription != null) {
+            this.splitSubscription.unsubscribe();
+        }
     }
 
     componentWillReceiveProps(newProps) {
@@ -163,7 +195,19 @@ export default class PassPager extends React.Component {
     }
 
     onAdd = () => {
-        
+        this.props.navigation.navigate('PassPicker', {
+            onPick: this.onReqAddPass,
+            passes: this.state.passes
+        });
+    }
+
+    onReqAddPass = (passID) => {
+        return this.props.addPass(passID);
+    }
+
+    onReqRemovePass = () => {
+        console.log("ON REQ REMOVE: ", this.state.passI);
+        return this.props.removePass(this.state.passes[this.state.passI].id);
     }
 
     //Disable pass for any member of the party
@@ -177,18 +221,34 @@ export default class PassPager extends React.Component {
     }
 
     //Join the split
-    onSplit = () => {
-        
+    onReqSplit = () => {
+        this.updateSplitters("split");
     }
 
     //Current user leaves the split
-    onUnsplit = () => {
-
+    onReqUnsplit = () => {
+        this.updateSplitters("unsplit");
     }
     
     //Unsplit passes across all users
-    onMerge = () => {
+    onReqMerge = () => {
+        this.updateSplitters("merge");
+    }
 
+    updateSplitters = (action) => {
+        API.graphql(graphqlOperation(mutations.updateSplitters, {
+            groupID: this.props.groupID,
+            action: action
+        })).then((data) => {
+            var splitters = data.data.splitPasses.splitters;
+            this.onSplitterUpdate(splitters);
+        });
+    }
+
+    onSplitterUpdate = (splitters) => {
+        this.setState({
+            splitters: splitters
+        });
     }
 
     showNonEdit = () => {
@@ -201,13 +261,13 @@ export default class PassPager extends React.Component {
 
     showEdit = () => {
         this.refs._visibilityPass.bounceInLeft(this.ANIMATION_DURATION);
-        this.refs._deletePass.bounceInRight(this.ANIMATION_DURATION);
+        this.refs._removePass.bounceInRight(this.ANIMATION_DURATION);
         return this.refs._bottomEdit.bounceInUp(this.ANIMATION_DURATION);
     }
 
     hideEdit = () => {
         this.refs._visibilityPass.bounceOutLeft(this.ANIMATION_DURATION);
-        this.refs._deletePass.bounceOutRight(this.ANIMATION_DURATION);
+        this.refs._removePass.bounceOutRight(this.ANIMATION_DURATION);
         return this.refs._bottomEdit.bounceOutDown(this.ANIMATION_DURATION);
     }
 
@@ -217,6 +277,12 @@ export default class PassPager extends React.Component {
 
     hideSplit = () => {
         return this.refs._bottomSplit.bounceOutDown(this.ANIMATION_DURATION);
+    }
+    
+    onPageSelected = ({position}) => {
+        this.setState({
+            passI: position
+        });
     }
 
     renderPass = (pass) => {
@@ -287,7 +353,7 @@ export default class PassPager extends React.Component {
                     name="call-split"
                     size={this.ICON_SIZE}
                     color='blue'
-                    onPress={this.onSplit} />): null
+                    onPress={this.onReqSplit} />): null
                 }
                 {
                     (this.props.editingEnabled)? (
@@ -305,7 +371,12 @@ export default class PassPager extends React.Component {
                     name="call-merge"
                     size={this.ICON_SIZE}
                     color='blue'
-                    onPress={this.onMerge} />): null
+                    disabledStyle={{
+                        backgroundColor: Theme.DISABLED_BACKGROUND,
+                        color: Theme.DISABLED_FOREGROUND
+                    }}
+                    disabled={this.state.splitters == null || this.state.splitters.length == 0}
+                    onPress={this.onReqMerge} />): null
                 }
             </Animatable.View>
         </View>);
@@ -335,7 +406,7 @@ export default class PassPager extends React.Component {
                     onPress={(selectedPass != null && selectedPass.isEnabled)? this.onDisable: this.onEnable} />
                 </Animatable.View>
 
-                <Animatable.View ref="_deletePass"
+                <Animatable.View ref="_removePass"
                 animation="bounceIn"
                 duration={this.ANIMATION_DURATION}
                 style={{
@@ -346,10 +417,10 @@ export default class PassPager extends React.Component {
                     <Icon
                     raised
                     name="delete"
-                    disabled={(this.props.onDelete != null && (this.props.canDelete == null || this.props.canDelete(selectedPass)))}
+                    disabled={!(this.props.removePass != null && (this.props.canRemove == null || this.props.canRemove(selectedPass)))}
                     size={this.ICON_SIZE}
                     color='red'
-                    onPress={this.onDelete} />
+                    onPress={this.onReqRemovePass} />
                 </Animatable.View>
                 <Animatable.View ref="_bottomEdit"
                 animation="bounceIn"
@@ -410,7 +481,7 @@ export default class PassPager extends React.Component {
                     name="keyboard-back"
                     size={this.ICON_SIZE}
                     color='red'
-                    onPress={this.onUnsplit} />): null
+                    onPress={this.onReqUnsplit} />): null
                 }
                 {
                     (this.props.editingEnabled)? (
@@ -428,7 +499,8 @@ export default class PassPager extends React.Component {
                     name="call-merge"
                     size={this.ICON_SIZE}
                     color='blue'
-                    onPress={this.onMerge} />): null
+                    disabled={this.state.splitters == null || this.state.splitters.length == 0}
+                    onPress={this.onReqMerge} />): null
                 }
             </Animatable.View>
         </View>);
@@ -497,6 +569,7 @@ export default class PassPager extends React.Component {
                     (!this.state.editing)? (<PagerDotIndicator 
                         pageCount={this.state.passes.length} />): null
                 }
+                onPageSelected={this.onPageSelected}
                 ref={(viewPager) => { this.viewPager = viewPager; }}>
                     {
                         this.state.passes.map((pass) => {    
@@ -507,6 +580,24 @@ export default class PassPager extends React.Component {
                         })
                     }
                 </IndicatorViewPager>
+                {
+                        (!this.props.expanded && this.props.editHint != null)? (
+                            <Animatable.Text
+                                animation="bounceInLeft"
+                                style={{
+                                    position: "absolute",
+                                    left: 0,
+                                    top: 60, 
+                                    width: "100%",
+                                    fontSize: 26,
+                                    backgroundColor: "rgba(0, 0, 0, 0.9)",
+                                    color: "white",
+                                    textAlign: "center"
+                                }}>
+                                {this.props.editHint}
+                            </Animatable.Text>
+                        ): null
+                    }
                 {
                     (this.props.expanded)? (<Animatable.Image ref="_profile"
                     style={{

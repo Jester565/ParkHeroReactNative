@@ -26,6 +26,9 @@ export default class RidesParallax extends React.Component {
     }
 
     onExpand = () => {
+        if (this.props.onExpand != null) {
+            this.props.onExpand();
+        }
         this.setState({
             passExpanded: true
         }, () => {
@@ -43,6 +46,9 @@ export default class RidesParallax extends React.Component {
     handleBackPress = () => {
         var screenHeight = Dimensions.get('window').height;
         if (this.state.passExpanded) {
+            if (this.props.onContract != null) {
+                this.props.onContract();
+            }
             this.setState({
                 passExpanded: false
             }, () => {
@@ -75,10 +81,15 @@ export default class RidesParallax extends React.Component {
                     splitters={this.props.splitters}
                     onPress={this.onExpand}
                     expanded={this.state.passExpanded}
+                    editing={this.props.editing}
                     editingEnabled={this.props.editingEnabled}
                     splittingEnabled={this.props.splittingEnabled}
                     currentUserID={this.props.currentUserID}
-                    passGroupID={this.props.passGroupID} />
+                    passGroupID={this.props.passGroupID}
+                    navigation={this.props.navigation}
+                    addPass={this.props.addPass}
+                    removePass={this.props.removePass}
+                    editHint={this.props.editHint} />
                 <Animated.View style={{
                     marginTop: this.passOffset
                 }}>

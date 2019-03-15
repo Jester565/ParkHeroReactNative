@@ -94,3 +94,37 @@ export const deleteFilters = `mutation DeleteFilters($filterNames: [String]) {
   deleteFilters(filterNames: $filterNames)
 }
 `;
+export const updateSplitters = `mutation UpdateSplitters($groupID: String!, $action: String!) {
+  updateSplitters(groupID: $groupID, action: $action) {
+    groupID
+    splitters
+  }
+}
+`;
+export const updatePass = `mutation UpdatePass(
+  $passID: String!
+  $isPrimary: Boolean
+  $isEnabled: Boolean
+) {
+  updatePass(passID: $passID, isPrimary: $isPrimary, isEnabled: $isEnabled) {
+    user {
+      id
+      name
+      profilePicUrl
+    }
+    pass {
+      id
+      name
+      type
+      expirationDT
+      isPrimary
+      isEnabled
+      hasMaxPass
+    }
+  }
+}
+`;
+export const removePass = `mutation RemovePass($passID: String!) {
+  removePass(passID: $passID)
+}
+`;
