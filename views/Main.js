@@ -64,44 +64,63 @@ PushNotification.configure({
         //Don't continue on local notifications
         
         if (notification.default != null) {
-                        var data = JSON.parse(notification.default);
+            var data = JSON.parse(notification.default);
             console.log("DATA: ", JSON.stringify(data, null ,2));
-                        var soundName = "entrywhistle.mp3";
+            var soundName = "entrywhistle.mp3";
             if (data != null) {                
                 Hub.dispatch(data.type, data.payload, 'Notification');
-                                var payload = data.payload;
-                                var msg = "";
-                for (var update of payload.updates) {
-                    if (update.rideID == "353303") {
-                        soundName = "incredi.mp3";
-                    } else if (update.rideID == "16514416") {
-                        soundName = "cars.mp3";
+                var payload = data.payload;
+                var title = null;
+                var msg = "";
+                if (data.type == 'watchUpdate') {
+                    title = "Ride Update";
+                    for (var update of payload.updates) {
+                        if (update.rideID == "353303") {
+                            soundName = "incredi.mp3";
+                        } else if (update.rideID == "16514416") {
+                            soundName = "cars.mp3";
+                        }
+                        if (msg.length > 0) {
+                            msg += "\n";
+                        }
+                                            var fieldSet = false;
+                        msg += update.rideName;
+                        if (update.waitMins != null) {
+                            msg += "'s wait is " + update.waitMins.updated.toString() + " mins";
+                            fieldSet = true;
+                        } else if (update.waitRating != null && update.waitMins == null) {
+                            msg += (fieldSet? ", ": "'s ") + "wait is " + update.waitRating.updated.toString() + " mins";
+                            fieldSet = true;
+                        } else if (update.fastPassTime != null) {
+                            msg += (fieldSet? ", ": "'s ") + "FastPass is at " + moment(update.fastPassTime.updated, "YYYY-MM-DD HH:mm:ss").format("h:mm A")
+                            fieldSet = true;
+                        } else if (update.closedMins != null) {
+                            msg += (fieldSet? ", ": " ") + "opened after " + update.closedMins.toString()
+                        }
                     }
-                    if (msg.length > 0) {
-                        msg += "\n";
+                } else if (data.type == "addFriend") {
+                    if (payload.isFriend) {
+                        title = "Friend Added";
+                        msg += payload.user.name + " is now a friend";
+                    } else {
+                        title = "Friend Invite";
+                        msg += payload.user.name + " sent you a friend request";
                     }
-                                        var fieldSet = false;
-                    msg += update.rideName;
-                    if (update.waitMins != null) {
-                        msg += "'s wait is " + update.waitMins.updated.toString() + " mins";
-                        fieldSet = true;
-                    } else if (update.waitRating != null && update.waitMins == null) {
-                        msg += (fieldSet? ", ": "'s ") + "wait is " + update.waitRating.updated.toString() + " mins";
-                        fieldSet = true;
-                    } else if (update.fastPassTime != null) {
-                        msg += (fieldSet? ", ": "'s ") + "FastPass is at " + moment(update.fastPassTime.updated, "YYYY-MM-DD HH:mm:ss").format("h:mm A")
-                        fieldSet = true;
-                    } else if (update.closedMins != null) {
-                        msg += (fieldSet? ", ": " ") + "opened after " + update.closedMins.toString()
-                    }
+                } else if (data.type == "inviteToParty") {
+                    title = "Invited to Party";
+                    msg += payload.user.name + " sent you a party invite";
+                } else if (data.type == "acceptPartyInvite") {
+                    title = "New Party Member";
+                    msg += payload.user.name + " joined the party";
                 }
-
-                console.log("CREATING LOCAL NOTIFICATION: " + msg);
-                PushNotification.localNotification({
-                    title: "Ride Update",
-                    message: msg,
-                    soundName: soundName
-                });
+                if (title != null) {
+                    console.log("CREATING LOCAL NOTIFICATION: " + msg);
+                    PushNotification.localNotification({
+                        title: title,
+                        message: msg,
+                        soundName: soundName
+                    });
+                }
             }
         }
     },
@@ -185,7 +204,7 @@ export default class Main extends React.Component {
     }
 
     signOut = () => {
-                var onGoogleSignOut = () => {
+        var onGoogleSignOut = () => {
             Auth.signOut()
             .then(data => {
                 this.silentSignIn();
@@ -204,17 +223,8 @@ export default class Main extends React.Component {
         });
     }
 
-    onNotification = (notification) => {
-                var msg = notification.default;
-        Hub.dispatch(msg.type, msg.payload, 'Notification');
-
-        PushNotification.localNotification({
-            bigText: "Big Chungus"
-        });
-    }
-
     render() {
-                var tabs = [{
+        var tabs = [{
             iconSource: require('../assets/partys.png'),
             selectedIconSource: require('../assets/party.png')
         },

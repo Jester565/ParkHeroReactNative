@@ -20,7 +20,9 @@ export default class Home extends React.Component {
     }
 
     onOpenFriends = () => {
-
+        this.props.navigation.navigate('Friends', {
+            currentUser: this.props.user
+        });
     }
 
     onOpenProfile = () => {
@@ -46,8 +48,6 @@ export default class Home extends React.Component {
         var headerButtonSize = (screenWidth - profileImgWidth) / 4.0;
         var headerButtonXOffset = headerButtonSize / 2.0;
         var headerHeight = 100;
-        console.log("HEADER BUTTON OFFSET: ", headerButtonXOffset);
-        console.log("URI: ", S3_URL + this.props.user.profilePicUrl);
         return (
         <View>
             <View style={{ width: headerWidth, height: profileImgWidth }}>
@@ -116,7 +116,7 @@ export default class Home extends React.Component {
                     <Image
                     resizeMode={'cover'} 
                     style={{width: profileImgWidth - 4, height: profileImgWidth - 4, borderRadius: (profileImgWidth - 4) / 2.0}}
-                    source={{uri: S3_URL + this.props.user.profilePicUrl}} />
+                    source={{uri: S3_URL + this.props.user.profilePicUrl + "-1.webp"}} />
                 </TouchableHighlight>
             </View>
             {

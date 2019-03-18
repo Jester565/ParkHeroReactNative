@@ -8,9 +8,10 @@ import AwsExports from '../../AwsExports';
 import PassParallax from '../pass/PassParallax';
 import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
-import Amplify, { API, graphqlOperation } from 'aws-amplify';
+import Amplify, { API, graphqlOperation, Hub } from 'aws-amplify';
 import { Switch } from 'react-native-gesture-handler';
 import ImagePicker from 'react-native-image-crop-picker';
+import Toast from 'react-native-root-toast';
 
 Amplify.configure(AwsExports);
 
@@ -24,11 +25,15 @@ export default class Profile extends React.Component {
 
     constructor(props) {
         super();
+        this.FRIEND_INVITE_TYPE = 0;
+        this.PARTY_INVITE_TYPE = 1;
+
         this.ANIMATION_DURATION = 500;
 
         const { navigation } = props;
-                var user = navigation.getParam('user');
-                var authenticated = navigation.getParam('authenticated');
+        var user = navigation.getParam('user');
+        var authenticated = navigation.getParam('authenticated');
+
         this.state = {
             user: user,
             authenticated: authenticated,
@@ -37,12 +42,196 @@ export default class Profile extends React.Component {
             passesExpanded: false,
             imagePickerOpen: false,
             username: null,
-            imgUri: null
+            imgUri: null,
+            passError: null,
+            isFriend: false,
+            inParty: false,
+            ownsPartyInvite: false,
+            ownsFriendInvite: false,
+            sentPartyInvite: false,
+            sentFriendInvite: false
         };
     }
 
     componentWillMount() {
         this.refreshPasses();
+
+        if (!this.isMe()) {
+            Hub.listen('addFriend', this, 'Friends-AddFriend');
+            Hub.listen('removeFriend', this, 'Friends-RemoveFriend');
+            Hub.listen('inviteToParty', this, 'Friends-InviteToParty');
+            Hub.listen('leaveParty', this, 'Friends-LeaveParty');
+            Hub.listen('acceptPartyInvite', this, 'Friends-AcceptPartyInvite');
+            Hub.listen('deleteInvite', this, 'Friends-DeleteInvite');
+
+            this.refreshFriends();
+            this.refreshPartyMembers();
+            this.refreshInvites();
+        }
+    }
+    
+    refreshFriends = () => {
+        API.graphql(graphqlOperation(queries.getFriends)).then((data) => {
+            var friends = data.data.getFriends;
+            for (var friend of friends) {
+                if (friend.id == this.state.user.id) {
+                    this.setState({
+                        isFriend: true
+                    });
+                }
+            }
+        });
+    }
+
+    refreshPartyMembers = () => {
+        API.graphql(graphqlOperation(queries.getPartyMembers)).then((data) => {
+            var partyMembers = data.data.getPartyMembers;
+            for (var partyMember of partyMembers) {
+                if (partyMember.id == this.state.user.id) {
+                    this.setState({
+                        inParty: true
+                    });
+                }
+            }
+        });
+    }
+
+    refreshInvites = () => {
+        API.graphql(graphqlOperation(queries.getInvites)).then((data) => {
+            var invites = data.data.getInvites;
+            
+            for (var invite of invites) {
+                if (invite.user.id == this.state.user.id) {
+                    if (invite.type == this.FRIEND_INVITE_TYPE) {
+                        if (invite.isOwner) {
+                            this.setState({
+                                sentFriendInvite: true
+                            });
+                        } else {
+                            this.setState({
+                                ownsFriendInvite: true
+                            });
+                        }
+                    } else {
+                        if (invite.isOwner) {
+                            this.setState({
+                                sentPartyInvite: true
+                            });
+                        } else {
+                            this.setState({
+                                ownsPartyInvite: true
+                            });
+                        }
+                    }
+                }
+            }
+        });
+    }
+
+    // Default handler for listening events
+    onHubCapsule(capsule) {
+        console.log("HUB INVOKED");
+        const { channel, payload } = capsule;
+        if (channel === 'addFriend') { 
+            if (payload.user.id == this.state.user.id) {
+                if (payload.isFriend) {
+                    this.onFriendAdded(payload.user);
+                } else { 
+                    this.onFriendInviteAdded(payload.user); 
+                }
+            }
+        } else if (channel == 'removeFriend') {
+            if (payload.userID == this.state.user.id) {
+                this.onFriendRemoved();
+            }
+        } else if (channel == 'inviteToParty') {
+            if (payload.user.id == this.state.user.id) {
+                this.onInvitedToParty();
+            }
+        } else if (channel == 'leaveParty') {
+            if (payload.userID == this.state.user.id) {
+                this.onLeaveParty();
+            }
+        } else if (channel == 'acceptPartyInvite') {
+            if (payload.user.id == this.state.user.id) {
+                this.onPartyInviteAccepted();
+            }
+        } else if (channel == 'deleteInvite') {
+            if (payload.userID == this.state.user.id) {
+                this.onInviteDeleted(payload.isOwner, payload.type);
+            }
+        }
+    }
+
+    onFriendAdded = () => {
+        this.setState({
+            isFriend: true,
+            ownsFriendInvite: false,
+            sentFriendInvite: false
+        });
+    }
+
+    onFriendInviteAdded = () => {
+        this.setState({
+            ownsFriendInvite: true
+        });
+    }
+
+    onFriendRemoved = () => {
+        this.setState({
+            isFriend: false
+        });
+    }
+
+    onInvitedToParty = () => {
+        this.setState({
+            ownsPartyInvite: true
+        });
+    }
+
+    onLeaveParty = () => {
+        this.setState({
+            inParty: false
+        });
+    }
+
+    onPartyInviteAccepted = () => {
+        this.setState({
+            inParty: true,
+            sentPartyInvite: false,
+            ownsPartyInvite: false
+        })
+    }
+
+    onInviteDeleted = (isOwner, type) => {
+        if (type == this.FRIEND_INVITE_TYPE) {
+            if (isOwner) {
+                this.setState({
+                    sentFriendInvite: false
+                });
+            } else {
+                this.setState({
+                    ownsFriendInvite: false
+                });
+            }
+        } else {
+            if (isOwner) {
+                this.setState({
+                    sentPartyInvite: false
+                });
+            } else {
+                this.setState({
+                    ownsPartyInvite: false
+                });
+            }
+        }
+    }
+
+    onSignOut = () => {
+        const { navigation } = this.props;
+        var signOut = navigation.getParam('signOut');
+        navigation.goBack();
+        signOut();
     }
 
     onEdit = () => {
@@ -104,9 +293,11 @@ export default class Profile extends React.Component {
 
     onCameraPick = () => {
         ImagePicker.openCamera({
-            width: 300,
-            height: 400,
+            width: 1000,
+            height: 1000,
             cropping: true,
+            includeBase64: true,
+            rotation: 360
         }).then(image => {
             this.onImage(image);
         }).catch(() => {});
@@ -114,8 +305,8 @@ export default class Profile extends React.Component {
 
     onGalleryPick = () => {
         ImagePicker.openPicker({
-            width: 400,
-            height: 400,
+            width: 1000,
+            height: 1000,
             cropping: true,
             includeBase64: true
         }).then(image => {
@@ -124,6 +315,7 @@ export default class Profile extends React.Component {
     }
 
     onImage = (image) => {
+        console.log("ON IMAGE: ", JSON.stringify(image));
         this.setState({
             imagePickerOpen: false,
             imgUri: `data:${image.mime};base64,${image.data}`
@@ -137,7 +329,7 @@ export default class Profile extends React.Component {
     }
 
     refreshPasses = () => {
-        API.graphql(graphqlOperation(queries.getUserPasses)).then((data) => {
+        API.graphql(graphqlOperation(queries.getUserPasses, { userID: this.state.user.id })).then((data) => {
             var allUserPasses = data.data.getUserPasses;
             var newPasses = [];
             for (var userPasses of allUserPasses) {
@@ -148,6 +340,10 @@ export default class Profile extends React.Component {
             }
             this.setState({
                 passes: newPasses
+            });
+        }).catch((err) => {
+            this.setState({
+                passError: "Cannot Show Passes"
             });
         });
     }
@@ -226,7 +422,29 @@ export default class Profile extends React.Component {
     }
 
     onSubmit = () => {
-        console.log("ON SUBMIT");
+        this.setState({
+            submitting: true
+        }, () => {
+            API.graphql(graphqlOperation(mutations.updateUser, { 
+                name: (this.state.username != this.state.user.name)? this.state.username: null,
+                imgUri: this.state.imgUri
+            })).then((data) => {
+                var resp = data.data.updateUser;
+                var user = resp.user;
+                var errors = resp.errors;
+                console.log("USER: ", JSON.stringify(user));
+                if (errors != null) {
+                    for (var error of errors) {
+                        Toast.show(error);
+                    }
+                }
+                this.setState({
+                    user: user,
+                    submitting: false
+                });
+                this.onCancelEdit();
+            });
+        });
     }
 
     renderHeaderForeground = () => {
@@ -260,8 +478,8 @@ export default class Profile extends React.Component {
                 justifyContent: 'center',
                 alignItems: 'center' }} 
             resizeMode={'cover'} 
-            blurRadius={1}
-            source={{uri: (this.state.imgUri)? this.state.imgUri: S3_URL + this.state.user.profilePicUrl}} />
+            blurRadius={10}
+            source={{uri: (this.state.imgUri)? this.state.imgUri: S3_URL + this.state.user.profilePicUrl + "-0.webp"}} />
             <CachedImage 
             style={{ 
                 position: 'absolute',
@@ -270,7 +488,7 @@ export default class Profile extends React.Component {
                 width: screenWidth, 
                 height: screenHeight * 0.3 }} 
             resizeMode={'contain'}
-            source={{uri: (this.state.imgUri)? this.state.imgUri: S3_URL + this.state.user.profilePicUrl}} />
+            source={{uri: (this.state.imgUri)? this.state.imgUri: S3_URL + this.state.user.profilePicUrl + "-3.webp"}} />
             {
                 (this.state.editing)?
                 (
@@ -293,7 +511,7 @@ export default class Profile extends React.Component {
     }
 
     renderEditFooter = () => {
-        var submitDisabled = this.state.submitting;
+        var submitDisabled = !((this.state.username.length > 0 && this.state.username != this.state.user.name) || (this.state.imgUri != null));
         return (<Animatable.View 
             ref="_editFooter"
             style={{
@@ -370,17 +588,246 @@ export default class Profile extends React.Component {
             </Animatable.View>);
     }
 
+    isMe = () => {
+        const { navigation } = this.props;
+        return navigation.getParam('isMe');
+    }
+
+    isAuthenticated = () => {
+        const { navigation } = this.props;
+        return navigation.getParam('authenticated');
+    }
+
+    onReqAcceptPartyInvite = () => {
+        API.graphql(graphqlOperation(mutations.addFriend, { friendID: this.state.user.id })).then((data) => {
+            var isFriend = data.data.addFriend;
+            this.setState({
+                isFriend: isFriend,
+                sentFriendInvite: !isFriend
+            });
+        });
+    }
+
+    onReqInviteToParty = () => {
+        API.graphql(graphqlOperation(mutations.inviteToParty, { memberID: this.state.user.id })).then((data) => {
+            var isFriend = data.data.inviteToParty;
+            this.setState({
+                isFriend: isFriend,
+                sentPartyInvite: true
+            })
+        });
+    }
+
+    reqDeleteInvite = (isOwner, type) => {
+        API.graphql(graphqlOperation(mutations.deleteInvite, { isOwner: isOwner, type: type, userID: this.state.user.id })).then((data) => {
+
+        });
+    }
+
+    onReqDeletePartyInvite = () => {
+        
+    }
+
+    onReqAddFriend = () => {
+
+    }
+
+    onReqDeleteFriendInvite = () => {
+
+    }
+
+    onReqDeleteFriend = () => {
+        API.graphql(graphqlOperation(mutations.removeFriend, { friendID: this.state.user.id })).then((data) => {
+            this.setState({
+                isFriend: false
+            });
+        });
+    }
+
+    renderSocial = () => {
+        return (<View style={{
+            width: "100%",
+            flexDirection: 'column',
+            alignContent: 'center'
+        }}>
+            {
+                (this.state.ownsPartyInvite)? (
+                    <Button
+                    title='JOIN PARTY' 
+                    rounded={true} 
+                    backgroundColor={'blue'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqAcceptPartyInvite} />
+                ): null
+            }
+            {
+                (!this.state.sentPartyInvite)? (
+                    <Button
+                    title='INVITE TO PARTY' 
+                    rounded={true} 
+                    backgroundColor={'green'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqInviteToParty} />
+                ): null
+            }
+            {
+                (this.state.sentPartyInvite)? (
+                    <Button
+                    title='CANCEL PARTY INVITE' 
+                    rounded={true} 
+                    backgroundColor={'red'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqDeletePartyInvite} />
+                ): null
+            }
+            {
+                (this.state.sentPartyInvite)? (
+                    <Button
+                    title='DECLINE PARTY INVITE' 
+                    rounded={true} 
+                    backgroundColor={'red'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqDeclinePartyInvite} />
+                ): null
+            }
+            {
+                (!this.state.isFriend && !this.state.sentFriendInvite && !this.state.ownsFriendInvite)? (
+                    <Button
+                    title='SEND FRIEND REQUEST' 
+                    rounded={true} 
+                    backgroundColor={'green'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqAddFriend} />
+                ): null
+            }
+            {
+                (!this.state.isFriend && this.state.sentFriendInvite)? (
+                    <Button
+                    title='CANCEL FRIEND REQUEST' 
+                    rounded={true} 
+                    backgroundColor={'red'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqDeleteFriendInvite} />
+                ): null
+            }
+            {
+                (!this.state.isFriend && this.state.ownsFriendInvite)? (
+                    <Button
+                    title='ACCEPT FRIEND REQUEST' 
+                    rounded={true} 
+                    backgroundColor={'green'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqAddFriend} />
+                ): null
+            }
+            {
+                (!this.state.isFriend && this.state.ownsFriendInvite)? (
+                    <Button
+                    title='DECLINE FRIEND REQUEST' 
+                    rounded={true} 
+                    backgroundColor={'red'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqDeclineFriendInvite} />
+                ): null
+            }
+            {
+                (this.state.isFriend)? (
+                    <Button
+                    title='DELETE FRIEND' 
+                    rounded={true} 
+                    backgroundColor={'red'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqDeleteFriend} />
+                ): null
+            }
+        </View>);
+    }
+
+    renderOptionGrid = () => {
+        var fontSize = 35;
+        var subFontSize = 26;
+
+        return (<View>
+            <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignContent: 'center',
+                marginTop: 20,
+                padding: 5,
+                borderTopWidth: 2,
+                borderColor: '#111111',
+                backgroundColor: Theme.PRIMARY_BACKGROUND
+            }}>
+                <Text style={{
+                    color: Theme.PRIMARY_FOREGROUND,
+                    fontSize: subFontSize
+                }}>
+                    Profile is <Text style={{color: '#00FF7F'}}>Visible</Text>
+                </Text>
+                {
+                    (this.state.editing)? (<Animatable.View
+                        ref="_visibleSwitch"
+                        style={{
+                            justifyContent: 'center',
+                            alignContent: 'center'
+                        }}>
+                            <Switch
+                                disabled={!this.state.editing}
+                                value={true} />
+                        </Animatable.View>): null
+                }
+            </View>
+            <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignContent: 'center',
+                padding: 5,
+                borderTopWidth: 3,
+                borderBottomWidth: 2,
+                borderColor: '#111111',
+                backgroundColor: Theme.PRIMARY_BACKGROUND
+            }}>
+                <Text style={{
+                    color: Theme.PRIMARY_FOREGROUND,
+                    fontSize: subFontSize
+                }}>
+                    Notifictions <Text style={{color: '#00FF7F'}}>Make Sound</Text>
+                </Text>
+                {
+                    (this.state.editing)? (
+                        <Animatable.View
+                        ref="_soundSwitch" 
+                        style={{
+                            justifyContent: 'center',
+                            alignContent: 'center'
+                        }}>
+                            <Switch
+                                disabled={!this.state.editing}
+                                value={true} />
+                        </Animatable.View>
+                    ): null
+                }
+            </View>
+        </View>);
+    }
+
     render() {
+        var isMe = this.isMe();
         var footer = null;
-        if (!this.state.passesExpanded) {
+        if (isMe && !this.state.passesExpanded) {
             footer = (this.state.editing)? this.renderEditFooter(): this.renderNonEditFooter();
+        }
+        var optionGrid = null;
+        if (isMe) {
+            optionGrid = this.renderOptionGrid();
         }
         var fontSize = 35;
         var subFontSize = 26;
-        const { navigation } = this.props;
-        var isMe = navigation.getParam('isMe');
         var screenWidth = Dimensions.get('window').width;
         var screenHeight = Dimensions.get('window').height;
+
+        var isMe = this.isMe();
+        var isAuthenticated = this.isAuthenticated();
         
         return (<View style={{
             width: "100%",
@@ -390,15 +837,16 @@ export default class Profile extends React.Component {
             headerHeight={screenHeight * 0.3}
             renderHeaderForeground={this.renderHeaderForeground}
             renderHeaderBackground={this.renderHeaderBackground}
-            editingEnabled={true}
+            editingEnabled={isMe}
             passes={this.state.passes}
             navigation={this.props.navigation}
-            currentUserID={(this.props.isMe)? this.state.user.id: null}
+            currentUserID={(isMe)? this.state.user.id: null}
             addPass={this.addPass}
             removePass={this.removePass}
-            onExpand={this.onPassExpand}
-            onContract={this.onPassContract}
-            editHint={(this.state.editing)? "Press to Edit": null}>
+            onExpand={(isMe)? this.onPassExpand: null}
+            onContract={(isMe)? this.onPassContract: null}
+            editHint={(this.state.editing)? "Press to Edit": null}
+            error={this.state.passError}>
                 <View style={{
                     width: "100%",
                     flexDirection: 'column',
@@ -429,66 +877,17 @@ export default class Profile extends React.Component {
                             </Animatable.View>
                         )
                     }
-                    <View style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignContent: 'center',
-                        marginTop: 20,
-                        padding: 5,
-                        borderTopWidth: 2,
-                        borderColor: '#111111',
-                        backgroundColor: Theme.PRIMARY_BACKGROUND
-                    }}>
-                        <Text style={{
-                            color: Theme.PRIMARY_FOREGROUND,
-                            fontSize: subFontSize
-                        }}>
-                            Profile is <Text style={{color: '#00FF7F'}}>Visible</Text>
-                        </Text>
-                        {
-                            (this.state.editing)? (<Animatable.View
-                                ref="_visibleSwitch"
-                                style={{
-                                    justifyContent: 'center',
-                                    alignContent: 'center'
-                                }}>
-                                    <Switch
-                                        disabled={!this.state.editing}
-                                        value={true} />
-                                </Animatable.View>): null
-                        }
-                    </View>
-                    <View style={{
-                        flexDirection: 'row',
-                        justifyContent: 'space-between',
-                        alignContent: 'center',
-                        padding: 5,
-                        borderTopWidth: 3,
-                        borderBottomWidth: 2,
-                        borderColor: '#111111',
-                        backgroundColor: Theme.PRIMARY_BACKGROUND
-                    }}>
-                        <Text style={{
-                            color: Theme.PRIMARY_FOREGROUND,
-                            fontSize: subFontSize
-                        }}>
-                            Notifictions <Text style={{color: '#00FF7F'}}>Make Sound</Text>
-                        </Text>
-                        {
-                            (this.state.editing)? (
-                                <Animatable.View
-                                ref="_soundSwitch" 
-                                style={{
-                                    justifyContent: 'center',
-                                    alignContent: 'center'
-                                }}>
-                                    <Switch
-                                        disabled={!this.state.editing}
-                                        value={true} />
-                                </Animatable.View>
-                            ): null
-                        }
-                    </View>
+                    { optionGrid }
+                    {
+                        (isMe && isAuthenticated)? (
+                            <Button
+                            title='SIGN OUT' 
+                            rounded={true} 
+                            backgroundColor={'red'} 
+                            containerViewStyle={{ marginTop: 20 }}
+                            onPress={this.onSignOut} />
+                        ): null
+                    }
                 </View>
             </PassParallax>
             {footer}

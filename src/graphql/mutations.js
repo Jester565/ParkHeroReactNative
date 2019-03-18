@@ -9,6 +9,17 @@ export const createUser = `mutation CreateUser($name: String) {
   }
 }
 `;
+export const updateUser = `mutation UpdateUser($name: String, $imgUri: String) {
+  updateUser(name: $name, imgUri: $imgUri) {
+    user {
+      id
+      name
+      profilePicUrl
+    }
+    errors
+  }
+}
+`;
 export const getRideTimes = `mutation GetRideTimes {
   getRideTimes {
     id
@@ -126,5 +137,33 @@ export const updatePass = `mutation UpdatePass(
 `;
 export const removePass = `mutation RemovePass($passID: String!) {
   removePass(passID: $passID)
+}
+`;
+export const addFriend = `mutation AddFriend($friendID: String!) {
+  addFriend(friendID: $friendID)
+}
+`;
+export const removeFriend = `mutation RemoveFriend($friendID: String!) {
+  removeFriend(friendID: $friendID)
+}
+`;
+export const inviteToParty = `mutation InviteToParty($memberID: String!) {
+  inviteToParty(memberID: $memberID)
+}
+`;
+export const acceptPartyInvite = `mutation AcceptPartyInvite($inviterID: String!) {
+  acceptPartyInvite(inviterID: $inviterID) {
+    id
+    name
+    profilePicUrl
+  }
+}
+`;
+export const leaveParty = `mutation LeaveParty {
+  leaveParty
+}
+`;
+export const deleteInvite = `mutation DeleteInvite($type: Int, $isOwner: Boolean, $userID: String) {
+  deleteInvite(type: $type, isOwner: $isOwner, userID: $userID)
 }
 `;

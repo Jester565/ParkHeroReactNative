@@ -79,8 +79,8 @@ export const getFilters = `query GetFilters {
   }
 }
 `;
-export const getUserPasses = `query GetUserPasses {
-  getUserPasses {
+export const getUserPasses = `query GetUserPasses($userID: String) {
+  getUserPasses(userID: $userID) {
     user {
       id
       name
@@ -117,6 +117,43 @@ export const getPartyPasses = `query GetPartyPasses {
       }
     }
     splitters
+  }
+}
+`;
+export const searchUsers = `query SearchUsers($prefix: String) {
+  searchUsers(prefix: $prefix) {
+    id
+    name
+    profilePicUrl
+  }
+}
+`;
+export const getFriends = `query GetFriends {
+  getFriends {
+    id
+    name
+    profilePicUrl
+  }
+}
+`;
+export const getPartyMembers = `query GetPartyMembers {
+  getPartyMembers {
+    id
+    name
+    profilePicUrl
+  }
+}
+`;
+export const getInvites = `query GetInvites {
+  getInvites {
+    isOwner
+    isFriend
+    type
+    user {
+      id
+      name
+      profilePicUrl
+    }
   }
 }
 `;

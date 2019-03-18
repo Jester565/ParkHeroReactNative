@@ -89,9 +89,11 @@ export default class RidesParallax extends React.Component {
                     navigation={this.props.navigation}
                     addPass={this.props.addPass}
                     removePass={this.props.removePass}
-                    editHint={this.props.editHint} />
+                    editHint={this.props.editHint}
+                    error={this.props.error} />
                 <Animated.View style={{
-                    marginTop: this.passOffset
+                    marginTop: this.passOffset,
+                    backgroundColor: Theme.SECONDARY_BACKGROUND
                 }}>
                     { this.props.children }
                 </Animated.View>

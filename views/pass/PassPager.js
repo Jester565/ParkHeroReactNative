@@ -16,6 +16,8 @@ import Amplify, { API, graphqlOperation } from 'aws-amplify';
 
 Amplify.configure(AwsExports);
 
+var S3_URL = "https://s3-us-west-2.amazonaws.com/disneyapp3/";
+
 export default class PassPager extends React.Component {
     constructor(props) {
         super(props);
@@ -524,12 +526,34 @@ export default class PassPager extends React.Component {
             }
         }
 
+        if (this.props.error != null) {
+            return (
+                <View style={{
+                    width: screenWidth,
+                    height: screenHeight,
+                    justifyContent: 'flex-start',
+                    alignContent: 'center',
+                    backgroundColor: '#333333'
+                }}>
+                    <Text style={{
+                        textAlign: 'center',
+                        fontSize: this.FONT_SIZE * 2,
+                        marginTop: 60,
+                        color: Theme.PRIMARY_FOREGROUND,
+                    }}>
+                        {this.props.error}
+                    </Text>
+                </View>
+            )
+        }
+
         if (this.props.passes == null || this.props.passes.length == 0) {
             return <View style={{
                 width: screenWidth,
                 height: screenHeight,
                 justifyContent: 'flex-start',
-                alignContent: 'center'
+                alignContent: 'center',
+                backgroundColor: '#333333'
             }}>
                 {
                     (this.props.editingEnabled)? (
@@ -559,7 +583,8 @@ export default class PassPager extends React.Component {
         }
         return (
             <View style={{
-                flex: 1
+                flex: 1,
+                backgroundColor: '#333333'
             }}>
                 <IndicatorViewPager style={{
                     width: screenWidth,
@@ -581,23 +606,23 @@ export default class PassPager extends React.Component {
                     }
                 </IndicatorViewPager>
                 {
-                        (!this.props.expanded && this.props.editHint != null)? (
-                            <Animatable.Text
-                                animation="bounceInLeft"
-                                style={{
-                                    position: "absolute",
-                                    left: 0,
-                                    top: 60, 
-                                    width: "100%",
-                                    fontSize: 26,
-                                    backgroundColor: "rgba(0, 0, 0, 0.9)",
-                                    color: "white",
-                                    textAlign: "center"
-                                }}>
-                                {this.props.editHint}
-                            </Animatable.Text>
-                        ): null
-                    }
+                    (!this.props.expanded && this.props.editHint != null)? (
+                        <Animatable.Text
+                            animation="bounceInLeft"
+                            style={{
+                                position: "absolute",
+                                left: 0,
+                                top: 60, 
+                                width: "100%",
+                                fontSize: 26,
+                                backgroundColor: "rgba(0, 0, 0, 0.9)",
+                                color: "white",
+                                textAlign: "center"
+                            }}>
+                            {this.props.editHint}
+                        </Animatable.Text>
+                    ): null
+                }
                 {
                     (this.props.expanded)? (<Animatable.Image ref="_profile"
                     style={{
@@ -610,24 +635,7 @@ export default class PassPager extends React.Component {
                         borderWidth: 2,
                         borderColor: Theme.PRIMARY_FOREGROUND
                     }}
-                    source={{uri: 'https://s3-us-west-2.amazonaws.com/disneyapp3/profileImgs/blank-profile-picture-973460_640.png'}} />): null
-                }
-                {
-                    (this.props.expanded && this.state.splitters != null && this.state.splitters.length > 0)? (
-                        <Text style={{
-                            position: 'absolute',
-                            left: (screenWidth / 2) - this.ICON_SIZE * 1.5,
-                            top: this.PASS_HEIGHT + this.ICON_SIZE / 2.0,
-                            width: this.ICON_SIZE * 3,
-                            height: this.ICON_SIZE * 3,
-                            borderRadius: this.ICON_SIZE,
-                            borderWidth: 2,
-                            borderColor: Theme.PRIMARY_FOREGROUND,
-                            textAlign: 'center'
-                        }}>
-                            {this.state.splitters.length}
-                        </Text>
-                    ): null
+                    source={{uri: (selectedPass != null && selectedPass.user != null && selectedPass.user.profilePicUrl != null)? S3_URL + selectedPass.user.profilePicUrl + '-0.webp': null}} />): null
                 }
                 <View style={{
                     position: 'absolute',
