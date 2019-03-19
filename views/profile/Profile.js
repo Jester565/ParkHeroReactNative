@@ -185,7 +185,8 @@ export default class Profile extends React.Component {
 
     onInvitedToParty = () => {
         this.setState({
-            ownsPartyInvite: true
+            ownsPartyInvite: true,
+            ownsFriendInvite: false
         });
     }
 
@@ -599,11 +600,11 @@ export default class Profile extends React.Component {
     }
 
     onReqAcceptPartyInvite = () => {
-        API.graphql(graphqlOperation(mutations.addFriend, { friendID: this.state.user.id })).then((data) => {
-            var isFriend = data.data.addFriend;
+        API.graphql(graphqlOperation(mutations.acceptPartyInvite, { inviterID: this.state.user.id })).then((data) => {
             this.setState({
-                isFriend: isFriend,
-                sentFriendInvite: !isFriend
+                isFriend: true,
+                ownsPartyInvite: false,
+                sentPartyInvite: false
             });
         });
     }
@@ -620,20 +621,54 @@ export default class Profile extends React.Component {
 
     reqDeleteInvite = (isOwner, type) => {
         API.graphql(graphqlOperation(mutations.deleteInvite, { isOwner: isOwner, type: type, userID: this.state.user.id })).then((data) => {
-
+            if (type == this.PARTY_INVITE_TYPE) {
+                if (isOwner) {
+                    this.setState({
+                        sentPartyInvite: false
+                    });
+                } else {
+                    this.setState({
+                        ownsPartyInvite: false
+                    });
+                }
+            } else {
+                if (isOwner) {
+                    this.setState({
+                        sentFriendInvite: false
+                    });
+                } else {
+                    this.setState({
+                        ownsFriendInvite: false
+                    });
+                }
+            }
         });
     }
 
     onReqDeletePartyInvite = () => {
-        
+        this.reqDeleteInvite(true, this.PARTY_INVITE_TYPE);
+    }
+
+    onReqDeclinePartyInvite = () => {
+        this.reqDeleteInvite(false, this.PARTY_INVITE_TYPE);
     }
 
     onReqAddFriend = () => {
-
+        API.graphql(graphqlOperation(mutations.addFriend, { friendID: this.state.user.id })).then((data) => {
+            var isFriend = data.data.addFriend;
+            this.setState({
+                isFriend: isFriend,
+                sentFriendInvite: !isFriend
+            });
+        });
     }
 
     onReqDeleteFriendInvite = () => {
+        this.reqDeleteInvite(true, this.FRIEND_INVITE_TYPE);
+    }
 
+    onReqDeclineFriendInvite = () => {
+        this.reqDeleteInvite(false, this.FRIEND_INVITE_TYPE);
     }
 
     onReqDeleteFriend = () => {
@@ -651,17 +686,7 @@ export default class Profile extends React.Component {
             alignContent: 'center'
         }}>
             {
-                (this.state.ownsPartyInvite)? (
-                    <Button
-                    title='JOIN PARTY' 
-                    rounded={true} 
-                    backgroundColor={'blue'} 
-                    containerViewStyle={{ marginTop: 20 }}
-                    onPress={this.onReqAcceptPartyInvite} />
-                ): null
-            }
-            {
-                (!this.state.sentPartyInvite)? (
+                (!this.state.sentPartyInvite && !this.state.inParty)? (
                     <Button
                     title='INVITE TO PARTY' 
                     rounded={true} 
@@ -681,7 +706,17 @@ export default class Profile extends React.Component {
                 ): null
             }
             {
-                (this.state.sentPartyInvite)? (
+                (this.state.ownsPartyInvite)? (
+                    <Button
+                    title='JOIN PARTY' 
+                    rounded={true} 
+                    backgroundColor={'blue'} 
+                    containerViewStyle={{ marginTop: 20 }}
+                    onPress={this.onReqAcceptPartyInvite} />
+                ): null
+            }
+            {
+                (this.state.ownsPartyInvite)? (
                     <Button
                     title='DECLINE PARTY INVITE' 
                     rounded={true} 
@@ -691,7 +726,7 @@ export default class Profile extends React.Component {
                 ): null
             }
             {
-                (!this.state.isFriend && !this.state.sentFriendInvite && !this.state.ownsFriendInvite)? (
+                (!this.state.isFriend && !this.state.sentFriendInvite && !this.state.ownsFriendInvite && !this.state.ownsPartyInvite && !this.state.sentPartyInvite)? (
                     <Button
                     title='SEND FRIEND REQUEST' 
                     rounded={true} 
@@ -701,7 +736,7 @@ export default class Profile extends React.Component {
                 ): null
             }
             {
-                (!this.state.isFriend && this.state.sentFriendInvite)? (
+                (!this.state.isFriend && this.state.sentFriendInvite && !this.state.ownsPartyInvite && !this.state.sentPartyInvite)? (
                     <Button
                     title='CANCEL FRIEND REQUEST' 
                     rounded={true} 
@@ -711,7 +746,7 @@ export default class Profile extends React.Component {
                 ): null
             }
             {
-                (!this.state.isFriend && this.state.ownsFriendInvite)? (
+                (!this.state.isFriend && this.state.ownsFriendInvite && !this.state.ownsPartyInvite)? (
                     <Button
                     title='ACCEPT FRIEND REQUEST' 
                     rounded={true} 
@@ -721,7 +756,7 @@ export default class Profile extends React.Component {
                 ): null
             }
             {
-                (!this.state.isFriend && this.state.ownsFriendInvite)? (
+                (!this.state.isFriend && this.state.ownsFriendInvite && !this.state.ownsPartyInvite)? (
                     <Button
                     title='DECLINE FRIEND REQUEST' 
                     rounded={true} 
@@ -821,12 +856,15 @@ export default class Profile extends React.Component {
         if (isMe) {
             optionGrid = this.renderOptionGrid();
         }
+        var socialButtons = null;
+        if (!isMe) {
+            socialButtons = this.renderSocial();
+        }
         var fontSize = 35;
         var subFontSize = 26;
         var screenWidth = Dimensions.get('window').width;
         var screenHeight = Dimensions.get('window').height;
 
-        var isMe = this.isMe();
         var isAuthenticated = this.isAuthenticated();
         
         return (<View style={{
@@ -878,6 +916,7 @@ export default class Profile extends React.Component {
                         )
                     }
                     { optionGrid }
+                    { socialButtons }
                     {
                         (isMe && isAuthenticated)? (
                             <Button

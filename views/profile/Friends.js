@@ -316,7 +316,7 @@ export default class Friends extends React.Component {
     }
 
     onFriendRemoved = (userID) => {
-        var friends = this.removeFromArr(this.state.friends, user, this.isUserEqual);
+        var friends = this.removeFromArr(this.state.friends, { id: userID }, this.isUserEqual);
         this.setState({
             friends: friends
         });
@@ -384,6 +384,10 @@ export default class Friends extends React.Component {
             var isFriend = data.data.addFriend;
             if (isFriend) {
                 friends = this.addToArr(this.state.friends, user, this.isUserEqual);
+                friendInvites = this.removeFromArr(this.state.friendInvites, {
+                    isOwner: false,
+                    user: user
+                }, this.isFriendInviteEqual);
             } else {
                 var invite = {
                     isOwner: true,
