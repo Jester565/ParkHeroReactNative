@@ -49,7 +49,8 @@ export default class Profile extends React.Component {
             ownsPartyInvite: false,
             ownsFriendInvite: false,
             sentPartyInvite: false,
-            sentFriendInvite: false
+            sentFriendInvite: false,
+            splitters: []
         };
     }
 
@@ -884,7 +885,8 @@ export default class Profile extends React.Component {
             onExpand={(isMe)? this.onPassExpand: null}
             onContract={(isMe)? this.onPassContract: null}
             editHint={(this.state.editing)? "Press to Edit": null}
-            error={this.state.passError}>
+            error={this.state.passError}
+            splitters={this.state.splitters}>
                 <View style={{
                     width: "100%",
                     flexDirection: 'column',

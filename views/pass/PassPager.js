@@ -1,5 +1,5 @@
 import React from 'react';
-import { Picker, StyleSheet, Image, TextInput, View, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Switch, Modal, TouchableWithoutFeedback, Dimensions } from 'react-native';
+import { Picker, StyleSheet, Image, TextInput, View, FlatList, TouchableOpacity, AppState, Dimensions } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Icon, Text, Avatar, Card, SearchBar, Slider } from 'react-native-elements';
 import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
 import Collapsible from 'react-native-collapsible';
@@ -33,7 +33,6 @@ export default class PassPager extends React.Component {
             passes: passInfo.passes,
             passI: passInfo.passI,
             editing: passInfo.showAll,
-            splitters: (props.splitters != null)? props.splitters.slice(): [],
             splitting: passInfo.splitting,
             hasEnabledPasses: passInfo.hasEnabledPasses
         };
@@ -47,13 +46,24 @@ export default class PassPager extends React.Component {
     componentWillMount() {
         if (this.props.groupID != null) {
             this.subToSplitters();
+            AppState.addEventListener('change', this.handleAppStateChange);
         }
     }
 
     componentWillUnmount() {
         if (this.props.groupID != null) {
             this.unsubFromSplitters();
+            AppState.removeEventListener('change', this.handleAppStateChange);
         }
+    }
+
+    handleAppStateChange = (nextAppState) => {
+        if (this.splitSubscription == null && nextAppState == 'active' && (this.appState == 'background' || this.appState == 'inactive')) {
+            this.subToSplitters();
+        } else if (this.splitSubscription != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
+            this.unsubFromSplitters();
+        }
+        this.appState = nextAppState;
     }
 
     subToSplitters = () => {
@@ -61,7 +71,8 @@ export default class PassPager extends React.Component {
             graphqlOperation(subscriptions.subUpdateSplitters, { groupID: this.props.groupID })
         ).subscribe({
             next: (data) => {
-                var splitters = data.data.subUpdateSplitters.splitters;
+                console.log("DATA: ", JSON.stringify(data.value));
+                var splitters = data.value.data.subUpdateSplitters.splitters;
                 this.onSplitterUpdate(splitters);
             }
         });
@@ -70,22 +81,24 @@ export default class PassPager extends React.Component {
     unsubFromSplitters = () => {
         if (this.splitSubscription != null) {
             this.splitSubscription.unsubscribe();
+            this.splitSubscription = null;
         }
     }
 
     componentWillReceiveProps(newProps) {
-        if (newProps.passes != this.lastPasses) {
+        if (newProps.passes != this.lastPasses || newProps.splitters != this.props.splitters) {
             this.lastPasses = newProps.passes;
 
             var passInfo = this.getFilteredPasses(newProps.passes, 
+                newProps.splitters, 
                 newProps.currentUserID, 
-                this.state.splitters, 
                 this.state.editing, 
                 this.state.passI);
             this.setState({
                 passes: passInfo.passes,
                 passI: passInfo.passI,
                 editing: passInfo.showAll,
+                splitting: passInfo.splitting,
                 hasEnabledPasses: passInfo.hasEnabledPasses
             });
         }
@@ -160,8 +173,8 @@ export default class PassPager extends React.Component {
         hidePromise.then(() => {
             var passInfo = this.getFilteredPasses(
                 this.props.passes, 
+                this.props.splitters, 
                 this.props.currentUserID, 
-                this.state.splitters, 
                 true, 
                 this.state.passI);
             this.setState({
@@ -178,8 +191,8 @@ export default class PassPager extends React.Component {
         this.hideEdit().then(() => {
             var passInfo = this.getFilteredPasses(
                 this.props.passes, 
+                this.props.splitters, 
                 this.props.currentUserID, 
-                this.state.splitters, 
                 false, 
                 this.state.passI);
             this.setState({
@@ -242,15 +255,15 @@ export default class PassPager extends React.Component {
             groupID: this.props.groupID,
             action: action
         })).then((data) => {
-            var splitters = data.data.splitPasses.splitters;
-            this.onSplitterUpdate(splitters);
+            var splitters = data.data.updateSplitters.splitters;
+            this.setState({
+                splitters: splitters
+            });
         });
     }
 
     onSplitterUpdate = (splitters) => {
-        this.setState({
-            splitters: splitters
-        });
+        this.props.onSplitterUpdate(splitters.slice());
     }
 
     showNonEdit = () => {
@@ -377,7 +390,7 @@ export default class PassPager extends React.Component {
                         backgroundColor: Theme.DISABLED_BACKGROUND,
                         color: Theme.DISABLED_FOREGROUND
                     }}
-                    disabled={this.state.splitters == null || this.state.splitters.length == 0}
+                    disabled={this.props.splitters == null || this.props.splitters.length == 0}
                     onPress={this.onReqMerge} />): null
                 }
             </Animatable.View>
@@ -480,7 +493,7 @@ export default class PassPager extends React.Component {
                     (this.props.splittingEnabled)? (
                     <Icon
                     raised
-                    name="keyboard-back"
+                    name="keyboard-backspace"
                     size={this.ICON_SIZE}
                     color='red'
                     onPress={this.onReqUnsplit} />): null
@@ -501,7 +514,7 @@ export default class PassPager extends React.Component {
                     name="call-merge"
                     size={this.ICON_SIZE}
                     color='blue'
-                    disabled={this.state.splitters == null || this.state.splitters.length == 0}
+                    disabled={this.props.splitters == null || this.props.splitters.length == 0}
                     onPress={this.onReqMerge} />): null
                 }
             </Animatable.View>

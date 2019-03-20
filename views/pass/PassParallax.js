@@ -85,12 +85,13 @@ export default class RidesParallax extends React.Component {
                     editingEnabled={this.props.editingEnabled}
                     splittingEnabled={this.props.splittingEnabled}
                     currentUserID={this.props.currentUserID}
-                    passGroupID={this.props.passGroupID}
+                    groupID={this.props.groupID}
                     navigation={this.props.navigation}
                     addPass={this.props.addPass}
                     removePass={this.props.removePass}
                     editHint={this.props.editHint}
-                    error={this.props.error} />
+                    error={this.props.error}
+                    onSplitterUpdate={this.props.onSplitterUpdate} />
                 <Animated.View style={{
                     marginTop: this.passOffset,
                     backgroundColor: Theme.SECONDARY_BACKGROUND
