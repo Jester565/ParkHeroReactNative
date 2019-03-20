@@ -29,15 +29,12 @@ export default class Home extends React.Component {
         this.props.navigation.navigate('Profile', {
             isMe: true,
             user: this.props.user,
-            authenticated: this.props.authenticated,
-            signOut: this.props.signOut
+            authenticated: this.props.authenticated
         });
     }
 
     onOpenAuthenticator = () => {
-        this.props.navigation.navigate('Auth', {
-            onSignIn: this.props.onSignIn
-        });
+        this.props.navigation.navigate('Auth');
     }
 
     render() {

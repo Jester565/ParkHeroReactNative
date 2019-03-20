@@ -16,6 +16,6 @@ var AwsExports = {
         bucket: 'disneyapp3',
         region: 'us-west-2'
     }
-}
+};
 
 export default AwsExports;

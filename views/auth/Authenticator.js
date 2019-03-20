@@ -10,13 +10,9 @@ import { GoogleSignin, GoogleSigninButton, statusCodes } from 'react-native-goog
 import * as Animatable from 'react-native-animatable';
 import AwsExports from '../../AwsExports';
 import Amplify, { Auth, API, graphqlOperation } from 'aws-amplify';
+import NetManager from '../../NetManager';
 
 Amplify.configure(AwsExports);
-
-//Init to get profile and email
-GoogleSignin.configure({
-    webClientId: "484305592931-sm009q5ug5hhsn174uka9f2tmt17re8l.apps.googleusercontent.com"
-});
 
 const styles = StyleSheet.create({
     container: {
@@ -65,6 +61,8 @@ export default class Authenticator extends React.Component {
                     token: idToken
                 }
             );
+
+            //Net Manager on sign in
             this.onSignIn(true);
         } catch (err) {
             console.log("OnGooglePress Error: ", err);
@@ -73,13 +71,10 @@ export default class Authenticator extends React.Component {
 
     //Sign in refers to any method of authentication
     onSignIn = (authenticated, username) => {
-        const { navigation } = this.props;
-        var onSignIn = navigation.getParam('onSignIn', null);
-
-        console.log("ON SIGN IN");
-        onSignIn(authenticated, username);
-        console.log("GO BACK");
-        navigation.goBack();
+        NetManager.signIn(authenticated, username).then(() => {
+            const { navigation } = this.props;
+            navigation.goBack();
+        });
     }
 
     //Change page to login, signup, or google

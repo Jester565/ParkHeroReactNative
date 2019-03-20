@@ -12,6 +12,7 @@ import Amplify, { API, graphqlOperation, Hub } from 'aws-amplify';
 import { Switch } from 'react-native-gesture-handler';
 import ImagePicker from 'react-native-image-crop-picker';
 import Toast from 'react-native-root-toast';
+import NetManager from '../../NetManager';
 
 Amplify.configure(AwsExports);
 
@@ -231,9 +232,9 @@ export default class Profile extends React.Component {
 
     onSignOut = () => {
         const { navigation } = this.props;
-        var signOut = navigation.getParam('signOut');
+        
+        NetManager.signOut();
         navigation.goBack();
-        signOut();
     }
 
     onEdit = () => {

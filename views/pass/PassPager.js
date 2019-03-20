@@ -74,8 +74,11 @@ export default class PassPager extends React.Component {
                 console.log("DATA: ", JSON.stringify(data.value));
                 var splitters = data.value.data.subUpdateSplitters.splitters;
                 this.onSplitterUpdate(splitters);
+            },
+            error: error => {
+                console.warn(error);
             }
-        });
+        })
     }
 
     unsubFromSplitters = () => {

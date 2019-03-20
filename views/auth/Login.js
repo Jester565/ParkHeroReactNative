@@ -61,8 +61,8 @@ export default class Login extends React.Component {
             loggingIn: true
         });
         try {
-            var user = await Auth.signIn(this.state.username, this.state.password);
-            this.props.onSignIn();
+            await Auth.signIn(this.state.username, this.state.password);
+            this.props.onSignIn(true);
         } catch (err) {
             console.log("LOGIN ERROR: ", JSON.stringify(err));
             if (err.code == "UserNotConfirmedException") {

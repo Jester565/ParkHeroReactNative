@@ -6,6 +6,9 @@ import PassPicker from './views/pass/PassPicker';
 import Friends from './views/profile/Friends';
 import { createStackNavigator, createAppContainer } from 'react-navigation';
 import Theme from './Theme';
+import NetManager from './NetManager';
+
+NetManager.init();
 
 const navigator = createStackNavigator({
     Main: {screen: Main},
