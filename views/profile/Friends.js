@@ -17,6 +17,7 @@ import UserRow from './UserRow';
 import { isEquals } from 'immutability-helper';
 import InviteRow from './InviteRow';
 import Commons from '../../Commons';
+import NetManager from '../../NetManager';
 
 Amplify.configure(AwsExports);
 
@@ -47,12 +48,6 @@ export default class Friends extends React.Component {
             friendInvites: [],
             partyInvites: []
         };
-
-        this.focusListener = navigation.addListener('willFocus', () => {
-            this.refreshFriends();
-            this.refreshPartyMembers();
-            this.refreshInvites();
-        });
     }
 
     componentWillMount = () => {
@@ -62,6 +57,21 @@ export default class Friends extends React.Component {
         Hub.listen('leaveParty', this, 'Friends-LeaveParty');
         Hub.listen('acceptPartyInvite', this, 'Friends-AcceptPartyInvite');
         Hub.listen('deleteInvite', this, 'Friends-DeleteInvite');
+    }
+
+    refreshAll = () => {
+        this.refreshFriends();
+        this.refreshPartyMembers();
+        this.refreshInvites();
+    }
+
+    handleNet = (event) => {
+        if (event == "netSignIn") {
+            this.refreshAll();
+            this.focusListener = this.props.navigation.addListener('willFocus', () => {
+                this.refreshAll();
+            });
+        }
     }
 
     componentWillUnmount() {

@@ -15,6 +15,7 @@ import Toast from 'react-native-root-toast';
 import Commons from '../../Commons';
 import { ViewPager } from 'rn-viewpager';
 import { PagerDotIndicator, IndicatorViewPager } from 'rn-viewpager';
+import NetManager from '../../NetManager';
 
 Amplify.configure(AwsExports);
 
@@ -37,10 +38,6 @@ export default class Party extends React.Component {
             inviteSubmitting: false, //Disables invite accept/decline buttons when true
             leaveSubmitting: false
         };
-
-        this.focusListener = props.navigation.addListener('willFocus', () => {
-            this.refreshAll();
-        });
     }
 
     componentWillMount() {
@@ -49,20 +46,22 @@ export default class Party extends React.Component {
         Hub.listen('acceptPartyInvite', this, 'Party-AcceptPartyInvite');
         Hub.listen('deleteInvite', this, 'Party-DeleteInvite');
 
-        this.refreshAll();
-
-        AppState.addEventListener('change', this.handleAppStateChange);
+        NetManager.subscribe(this.handleNet)
     }
 
     componentWillUnmount() {
         AppState.removeEventListener('change', this.handleAppStateChange);
     }
 
-    handleAppStateChange = (nextAppState) => {
-        if (nextAppState == 'active' && (this.appState == 'background' || this.appState == 'inactive')) {
-            this.refreshPartyPasses();
+    handleNet = (event) => {
+        if (event == 'netSignIn') {
+            this.refreshAll();
+            if (this.focusListener == null) {
+                this.focusListener = this.props.navigation.addListener('willFocus', () => {
+                    this.refreshAll();
+                });
+            }
         }
-        this.appState = nextAppState;
     }
 
     refreshAll = () => {

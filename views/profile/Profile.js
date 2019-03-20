@@ -65,13 +65,23 @@ export default class Profile extends React.Component {
             Hub.listen('leaveParty', this, 'Friends-LeaveParty');
             Hub.listen('acceptPartyInvite', this, 'Friends-AcceptPartyInvite');
             Hub.listen('deleteInvite', this, 'Friends-DeleteInvite');
+        }
 
+        this.netSubToken = NetManager.subscribe(this.handleNet);
+    }
+
+    handleNet = (event) => {
+        if (event == "netSignIn") {
             this.refreshFriends();
             this.refreshPartyMembers();
             this.refreshInvites();
         }
     }
     
+    componentWillUnmount() {
+        NetManager.unsubscribe(this.netSubToken);
+    }
+
     refreshFriends = () => {
         API.graphql(graphqlOperation(queries.getFriends)).then((data) => {
             var friends = data.data.getFriends;

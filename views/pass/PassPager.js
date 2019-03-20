@@ -13,6 +13,7 @@ import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
 import * as subscriptions from '../../src/graphql/subscriptions';
 import Amplify, { API, graphqlOperation } from 'aws-amplify';
+import NetManager from '../../NetManager';
 
 Amplify.configure(AwsExports);
 
@@ -45,7 +46,7 @@ export default class PassPager extends React.Component {
 
     componentWillMount() {
         if (this.props.groupID != null) {
-            this.subToSplitters();
+            this.netSubToken = NetManager.subscribe(this.onNetChange);
             AppState.addEventListener('change', this.handleAppStateChange);
         }
     }
@@ -53,20 +54,28 @@ export default class PassPager extends React.Component {
     componentWillUnmount() {
         if (this.props.groupID != null) {
             this.unsubFromSplitters();
+            NetManager.unsubscribe(this.netSubToken);
             AppState.removeEventListener('change', this.handleAppStateChange);
         }
     }
 
-    handleAppStateChange = (nextAppState) => {
-        if (this.splitSubscription == null && nextAppState == 'active' && (this.appState == 'background' || this.appState == 'inactive')) {
+    onNetChange = (event, payload) => {
+        if (event == 'netSignIn' && this.splitSubscription == null) {
             this.subToSplitters();
-        } else if (this.splitSubscription != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
+        }
+    }
+
+    handleAppStateChange = (nextAppState) => {
+        if (this.splitSubscription != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
             this.unsubFromSplitters();
         }
         this.appState = nextAppState;
     }
 
     subToSplitters = () => {
+        if (this.splitSubscription != null) {
+            this.splitSubscription.unsubscribe();
+        }
         this.splitSubscription = API.graphql(
             graphqlOperation(subscriptions.subUpdateSplitters, { groupID: this.props.groupID })
         ).subscribe({
@@ -75,10 +84,12 @@ export default class PassPager extends React.Component {
                 var splitters = data.value.data.subUpdateSplitters.splitters;
                 this.onSplitterUpdate(splitters);
             },
-            error: error => {
+            error: (error) => {
                 console.warn(error);
+                this.splitSubscription.unsubscribe();
+                this.splitSubscription = null;
             }
-        })
+        });
     }
 
     unsubFromSplitters = () => {

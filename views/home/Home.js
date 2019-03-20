@@ -10,9 +10,6 @@ export default class Home extends React.Component {
     constructor(props) {
         super();
         console.log("USER: ", JSON.stringify(props.user));
-        this.state = {
-            
-        };
     }
 
     onOpenCamera = () => {

@@ -17,8 +17,11 @@ import * as mutations from '../../src/graphql/mutations';
 import WaitTimeChart from './WaitTimeChart';
 import FastPassChart from './FastPassChart';
 import Matterhorn from '../customride/Matterhorn';
+import NetManager from '../../NetManager';
 
 Amplify.configure(AwsExports);
+
+var S3_URL = "https://s3-us-west-2.amazonaws.com/disneyapp3/";
 
 var CUSTOM_RIDE_VIEW_URLS = {
     "353377": "matterhorn_custom_view"
@@ -80,7 +83,17 @@ export default class Ride extends React.Component {
     }
 
     componentWillMount() {
-        this.updateRideDPs(this.state.ride.id, this.state.date);
+        this.netSubToken = NetManager.subscribe(this.handleNet);
+    }
+
+    handleNet = (event) => {
+        if (event == "netSignIn") {
+            this.updateRideDPs(this.state.ride.id, this.state.date);
+        }
+    }
+
+    componentWillUnmount() {
+        NetManager.unsubscribe(this.netSubToken);
     }
 
     updateRideDPs = (rideID, date) => {
@@ -156,7 +169,7 @@ export default class Ride extends React.Component {
                 }
                 for (var i = 0; i < 4; i++) {
                     var key = pic.url + '-' + i.toString() + '.webp';
-                    pic.urls.push('https://s3-us-west-2.amazonaws.com/disneyapp3/' + key);
+                    pic.urls.push(S3_URL + key);
                     pic.keys.push(key);
                     pic.signedUrls.push(this.signedUrls[key]);
                 }

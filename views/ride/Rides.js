@@ -20,6 +20,7 @@ import { GetBlockLevel } from '../pass/PassLevel';
 import Theme from '../../Theme';
 import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
+import NetManager from '../../NetManager';
 
 Amplify.configure(AwsExports);
 
@@ -64,7 +65,22 @@ export default class Rides extends React.Component {
         }
     }
 
-    componentWillMount = () => {
+    componentWillMount() {
+        console.log("SUBSCRIBE");
+        this.netSubToken = NetManager.subscribe(this.handleNet);
+    }
+
+    componentWillUnmount() {
+        NetManager.unsubscribe(this.netSubToken);
+    }
+
+    handleNet = (event) => {
+        if (event == "netSignIn") {
+            this.refreshAll();
+        }
+    }
+
+    refreshAll = () => {
         this.refreshRides();
         var schedulePromise = this.refreshSchedules();
         //this.refreshPasses(schedulePromise);
