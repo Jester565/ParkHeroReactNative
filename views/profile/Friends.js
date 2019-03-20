@@ -16,6 +16,7 @@ import UserSearch from './UserSearch';
 import UserRow from './UserRow';
 import { isEquals } from 'immutability-helper';
 import InviteRow from './InviteRow';
+import Commons from '../../Commons';
 
 Amplify.configure(AwsExports);
 
@@ -46,19 +47,25 @@ export default class Friends extends React.Component {
             friendInvites: [],
             partyInvites: []
         };
+
+        this.focusListener = navigation.addListener('willFocus', () => {
+            this.refreshFriends();
+            this.refreshPartyMembers();
+            this.refreshInvites();
+        });
     }
 
     componentWillMount = () => {
-        this.refreshFriends();
-        this.refreshPartyMembers();
-        this.refreshInvites();
-
         Hub.listen('addFriend', this, 'Friends-AddFriend');
         Hub.listen('removeFriend', this, 'Friends-RemoveFriend');
         Hub.listen('inviteToParty', this, 'Friends-InviteToParty');
         Hub.listen('leaveParty', this, 'Friends-LeaveParty');
         Hub.listen('acceptPartyInvite', this, 'Friends-AcceptPartyInvite');
         Hub.listen('deleteInvite', this, 'Friends-DeleteInvite');
+    }
+
+    componentWillUnmount() {
+        this.focusListener.remove();
     }
 
     // Default handler for listening events
@@ -259,30 +266,6 @@ export default class Friends extends React.Component {
         });
     }
 
-    addToArr = (arr, addElm, isEqual) => {
-        for (var elm of arr) {
-            if (isEqual(elm, addElm)) {
-                return arr;
-            }
-        }
-        var newArr = arr.slice();
-        newArr.push(addElm);
-        return newArr;
-    }
-
-    removeFromArr = (arr, removeElm, isEqual) => {
-        var newArr = [];
-        for (var elm of arr) {
-            if (!isEqual(elm, removeElm)) {
-                newArr.push(elm);
-            }
-        }
-        if (newArr.length != arr.length) {
-            return newArr;
-        }
-        return arr;
-    }
-
     isFriendInviteEqual = (e1, e2) => {
         return (this.isUserEqual(e1.user, e2.user));
     }
@@ -297,7 +280,7 @@ export default class Friends extends React.Component {
 
     
     onFriendInviteAdded = (user) => {
-        var friendInvites = this.addToArr(this.state.friendInvites, {
+        var friendInvites = Commons.addToArr(this.state.friendInvites, {
             user: user,
             isOwner: false
         }, this.isFriendInviteEqual);
@@ -307,8 +290,8 @@ export default class Friends extends React.Component {
     }
     
     onFriendAdded = (user) => {
-        var friends = this.addToArr(this.state.friends, user, this.isUserEqual);
-        var friendInvites = this.removeFromArr(this.state.friendInvites, { user: user }, this.isFriendInviteEqual);
+        var friends = Commons.addToArr(this.state.friends, user, this.isUserEqual);
+        var friendInvites = Commons.removeFromArr(this.state.friendInvites, { user: user }, this.isFriendInviteEqual);
         this.setState({
             friends: friends,
             friendInvites: friendInvites
@@ -316,14 +299,14 @@ export default class Friends extends React.Component {
     }
 
     onFriendRemoved = (userID) => {
-        var friends = this.removeFromArr(this.state.friends, { id: userID }, this.isUserEqual);
+        var friends = Commons.removeFromArr(this.state.friends, { id: userID }, this.isUserEqual);
         this.setState({
             friends: friends
         });
     }
 
     onInvitedToParty = (user) => {
-        var partyInvites = this.addToArr(this.state.partyInvites, {
+        var partyInvites = Commons.addToArr(this.state.partyInvites, {
             user: user,
             isOwner: false
         }, this.isPartyInviteEqual);
@@ -333,7 +316,7 @@ export default class Friends extends React.Component {
     }
 
     onLeaveParty = (userID) => {
-        var partyMembers = this.removeFromArr(this.state.partyMembers, {
+        var partyMembers = Commons.removeFromArr(this.state.partyMembers, {
             id: userID
         }, this.isUserEqual);
         this.setState({
@@ -342,15 +325,15 @@ export default class Friends extends React.Component {
     }
 
     onPartyInviteAccepted = (user) => {
-        var partyInvites = this.removeFromArr(this.state.partyInvites, {
+        var partyInvites = Commons.removeFromArr(this.state.partyInvites, {
             user: user,
             isOwner: true
         }, this.isPartyInviteEqual);
-        partyInvites = this.removeFromArr(partyInvites, {
+        partyInvites = Commons.removeFromArr(partyInvites, {
             user: user,
             isOwner: false
         }, this.isPartyInviteEqual);
-        var partyMembers = this.addToArr(this.state.partyMembers, user, this.isUserEqual);
+        var partyMembers = Commons.addToArr(this.state.partyMembers, user, this.isUserEqual);
         this.setState({
             partyInvites: partyInvites,
             partyMembers: partyMembers
@@ -359,7 +342,7 @@ export default class Friends extends React.Component {
 
     onInviteDeleted = (userID, isOwner, type) => {
         if (type == this.FRIEND_INVITE_TYPE) {
-            var friendInvites = this.removeFromArr(this.state.friendInvites, {
+            var friendInvites = Commons.removeFromArr(this.state.friendInvites, {
                 user: { id: userID },
                 isOwner: isOwner
             }, this.isFriendInviteEqual);
@@ -367,7 +350,7 @@ export default class Friends extends React.Component {
                 friendInvites: friendInvites
             });
         } else {
-            var partyInvites = this.removeFromArr(this.state.partyInvites, {
+            var partyInvites = Commons.removeFromArr(this.state.partyInvites, {
                 user: { id: userID },
                 isOwner: isOwner
             }, this.isPartyInviteEqual);
@@ -383,8 +366,8 @@ export default class Friends extends React.Component {
             var friendInvites = this.state.friendInvites;
             var isFriend = data.data.addFriend;
             if (isFriend) {
-                friends = this.addToArr(this.state.friends, user, this.isUserEqual);
-                friendInvites = this.removeFromArr(this.state.friendInvites, {
+                friends = Commons.addToArr(this.state.friends, user, this.isUserEqual);
+                friendInvites = Commons.removeFromArr(this.state.friendInvites, {
                     isOwner: false,
                     user: user
                 }, this.isFriendInviteEqual);
@@ -395,7 +378,7 @@ export default class Friends extends React.Component {
                     type: this.FRIEND_INVITE_TYPE,
                     user: user
                 };
-                friendInvites = this.addToArr(this.state.friendInvites, invite, this.isFriendInviteEqual);
+                friendInvites = Commons.addToArr(this.state.friendInvites, invite, this.isFriendInviteEqual);
             }
             this.setState({
                 friends: friends,
@@ -414,7 +397,7 @@ export default class Friends extends React.Component {
     onReqRemoveFriends = () => {
         this.state.selectedUserArr.forEach((user) => {
             API.graphql(graphqlOperation(mutations.removeFriend, { friendID: user.id })).then((data) => {
-                var friends = this.removeFromArr(this.state.friends, user, this.isUserEqual);
+                var friends = Commons.removeFromArr(this.state.friends, user, this.isUserEqual);
                 this.setState({
                     friends: friends
                 });
@@ -433,7 +416,7 @@ export default class Friends extends React.Component {
                     type: this.PARTY_INVITE_TYPE,
                     user: user
                 };
-                var partyInvites = this.addToArr(this.state.partyInvites, invite, this.isPartyInviteEqual);
+                var partyInvites = Commons.addToArr(this.state.partyInvites, invite, this.isPartyInviteEqual);
                 this.setState({
                     partyInvites: partyInvites
                 });
@@ -448,7 +431,7 @@ export default class Friends extends React.Component {
 
     onReqFriendDecline = (invite) => {
         this.reqDeleteInvite(invite, this.FRIEND_INVITE_TYPE).then(() => {
-            var friendInvites = this.removeFromArr(this.state.friendInvites, {
+            var friendInvites = Commons.removeFromArr(this.state.friendInvites, {
                 isOwner: invite.isOwner,
                 type: this.FRIEND_INVITE_TYPE,
                 user: invite
@@ -467,12 +450,12 @@ export default class Friends extends React.Component {
         };
         API.graphql(graphqlOperation(mutations.acceptPartyInvite, { inviterID: invite.id })).then((data) => {
             var partyMembers = data.data.acceptPartyInvite;
-            var partyInvites = this.removeFromArr(this.state.partyInvites, {
+            var partyInvites = Commons.removeFromArr(this.state.partyInvites, {
                 user: inviteUser,
                 isOwner: invite.isOwner
             }, this.isPartyInviteEqual);
-            var friends = this.addToArr(this.state.friends, inviteUser, this.isUserEqual);
-            var friendInvites = this.removeFromArr(this.state.friendInvites, {
+            var friends = Commons.addToArr(this.state.friends, inviteUser, this.isUserEqual);
+            var friendInvites = Commons.removeFromArr(this.state.friendInvites, {
                 user: inviteUser,
                 isOwner: invite.isOwner
             }, this.isFriendInviteEqual);
@@ -494,7 +477,7 @@ export default class Friends extends React.Component {
 
     onReqPartyDecline = (invite) => {
         this.reqDeleteInvite(invite, this.PARTY_INVITE_TYPE).then(() => {
-            var partyInvites = this.removeFromArr(this.state.partyInvites, {
+            var partyInvites = Commons.removeFromArr(this.state.partyInvites, {
                 user: invite,
                 isOwner: invite.isOwner
             }, this.isPartyInviteEqual);

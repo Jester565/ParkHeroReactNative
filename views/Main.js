@@ -10,6 +10,7 @@ import {AsyncStorage} from 'react-native';
 import * as mutations from '../src/graphql/mutations';
 import moment from 'moment';
 import { GoogleSignin } from 'react-native-google-signin';
+import Party from './party/Party';
 
 Amplify.configure(AwsExports);
 
@@ -118,10 +119,13 @@ PushNotification.configure({
                     PushNotification.localNotification({
                         title: title,
                         message: msg,
-                        soundName: soundName
+                        soundName: soundName,
+                        data: data
                     });
                 }
             }
+        } else if (notification.data) {
+            
         }
     },
 
@@ -157,7 +161,8 @@ export default class Main extends React.Component {
         super();
 
         this.state = {
-            signedIn: false
+            signedIn: false,
+            isPagingEnabled: true
         };
 
         this.silentSignIn();
@@ -223,6 +228,13 @@ export default class Main extends React.Component {
         });
     }
 
+    setPagingEnabled = (enabled) => {
+        console.log("IS PAGING ENABLED: ", enabled)
+        this.setState({
+            isPagingEnabled: enabled
+        });
+    }
+
     render() {
         var tabs = [{
             iconSource: require('../assets/partys.png'),
@@ -239,13 +251,26 @@ export default class Main extends React.Component {
         return (
             <IndicatorViewPager style={{ width: "100%", height: "100%" }} indicator={
                 <PagerTabIndicator 
-                    style={{backgroundColor: '#222222', height: 50}}
+                    style={{backgroundColor: '#222222', height: (this.state.isPagingEnabled)? 50: 0}}
                     tabs={tabs} 
                     iconStyle={{ width: 30, height: 30 }} 
                     selectedIconStyle={{ width: 30, height: 30 }}  />
-                }>
+                }
+                initialPage={1}
+                horizontalScroll={this.state.isPagingEnabled}
+                scrollEnabled={this.state.isPagingEnabled}>
                 <View style={{height: "100%", width: "100%"}}>
-                    <Text>Party</Text>
+                {
+                    (this.state.signedIn)?
+                    (
+                        <Party 
+                            navigation={this.props.navigation}
+                            user={User}
+                            authenticated={this.state.authenticated}
+                            signOut={this.signOut}
+                            setPagingEnabled={this.setPagingEnabled} />
+                    ): null
+                }
                 </View>
                 <View style={{height: "100%", width: "100%"}}>
                     {
