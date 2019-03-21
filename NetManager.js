@@ -1,5 +1,5 @@
 import {AsyncStorage, NetInfo, AppState} from 'react-native';
-import { GoogleSignin } from 'react-native-google-signin';
+import { GoogleSignin, statusCodes } from 'react-native-google-signin';
 import Amplify, { Auth, API, graphqlOperation } from 'aws-amplify';
 import * as mutations from './src/graphql/mutations';
 var PushNotification = require('react-native-push-notification');
@@ -12,7 +12,7 @@ GoogleSignin.configure({
 });
 
 var _snsToken = null;
-var _expireTime = null;
+var _signingIn = null;
 
 PushNotification.configure({
     onError: (err) => {
@@ -164,6 +164,7 @@ function _refreshLogin() {
         'connectionChange',
         _handleConnectivityChange
     );
+    AppState.removeEventListener('change', _handleAppStateChange);
     console.log("REFRESH LOGIN INVOKE");
     silentSignIn();
 }
@@ -175,6 +176,7 @@ function _handleConnectivityChange(isConnected) {
             'connectionChange',
             _handleConnectivityChange
         );
+        AppState.removeEventListener('change', _handleAppStateChange);
         silentSignIn();
     }
 }
@@ -184,6 +186,11 @@ function _handleAppStateChange(nextAppState) {
         NetInfo.isConnected.fetch().then(isConnected => {
             if (isConnected) {
                 console.log("APP STATE INVOKE");
+                NetInfo.isConnected.removeEventListener(
+                    'connectionChange',
+                    _handleConnectivityChange
+                );
+                AppState.removeEventListener('change', _handleAppStateChange);
                 silentSignIn();
             } else {
                 NetInfo.isConnected.addEventListener(
@@ -219,25 +226,24 @@ function init() {
             console.log("INITIAL IS CONNECTED INVOKE");
             silentSignIn();
         } else {
+            AppState.addEventListener('change', _handleAppStateChange);
             NetInfo.isConnected.addEventListener(
                 'connectionChange',
                 _handleConnectivityChange
             );
         }
     });
-
-    AppState.addEventListener('change', _handleAppStateChange);
 }
 
 function silentSignIn() {
-    console.log("IN SILENT SIGN IN");
     if (_refreshTimeout != null) {
         clearTimeout(_refreshTimeout);
         _refreshTimeout = null;
     }
 
     var googleSilentSignIn = async() => {
-        const userInfo = await GoogleSignin.signInSilently();
+        var userInfo = await GoogleSignin.signInSilently();
+        console.log("GOOGLE USERINFO: ", JSON.stringify(userInfo));
         var idToken = userInfo.idToken;
         var fedSignInResult = await Auth.federatedSignIn(
             "accounts.google.com",
@@ -255,11 +261,21 @@ function silentSignIn() {
             await googleSilentSignIn();
             authenticated = true;
         } catch (e) {
-            try {
-                await Auth.currentSession();
-                authenticated = true;
-            } catch (e) { 
-                authenticated = false;
+            console.warn("GOOGLE SIGN IN ERROR: ", JSON.stringify(e));
+            if (e.code === statusCodes.SIGN_IN_REQUIRED || (e.line != null && e.code === null)) {
+                try {
+                    await Auth.currentSession();
+                    authenticated = true;
+                } catch (e) { 
+                    console.warn("AWS SIGN IN ERROR: ", JSON.stringify(e));
+                    if (e == "No current user") {
+                        authenticated = false;
+                    } else {
+                        throw e;
+                    }
+                }
+            } else {
+                throw e;
             }
         }
         return {
@@ -281,7 +297,9 @@ function silentSignIn() {
             } catch (ex) {}
             if (_user == null || (_authenticated !== authenticated && authenticated !== null)) {
                 _authenticated = authenticated;
+                console.log("GRAPHQL");
                 var createUserData = await API.graphql(graphqlOperation(mutations.createUser, { name: null }));
+                console.log("GRAPHQL DONE");
                 _user = createUserData.data.createUser;
                 if (_snsToken != null) {
                     _registerSns(_snsToken, _user);
@@ -292,7 +310,11 @@ function silentSignIn() {
                 }));
             }
             for (var subKey in _subscriptions) {
-                _subscriptions[subKey]("netSignIn", { user: _user, authenticated: _authenticated });
+                try {
+                    _subscriptions[subKey]("netSignIn", { user: _user, authenticated: _authenticated });
+                } catch (ex) { 
+                    console.warn("Subscription error: ", JSON.stringify(ex));
+                }
             }
             //Get expiration time of credentials for new logins
             if (expireTime == null) {
@@ -307,19 +329,28 @@ function silentSignIn() {
                 _refreshTimeout = setTimeout(_refreshLogin, expireTime - Date.now());
             }
         } catch (ex) { 
+            console.log("SIGN IN FAIL: ", ex);
             for (var subKey in _subscriptions) {
                 _subscriptions[subKey]("signInFail", ex);
             }
         }
-
-        NetInfo.isConnected.addEventListener(
-            'connectionChange',
-            _handleConnectivityChange
-        );
+    }).catch((e) => {
+        console.warn("REFRESH CREDS ERR: ", e);
     });
+    NetInfo.isConnected.addEventListener(
+        'connectionChange',
+        _handleConnectivityChange
+    );
+    AppState.addEventListener('change', _handleAppStateChange);
 }
 
 function signIn(authenticated, username) {
+    NetInfo.isConnected.removeEventListener(
+        'connectionChange',
+        _handleConnectivityChange
+    );
+    AppState.removeEventListener('change', _handleAppStateChange);
+    
     if (_refreshTimeout != null) {
         clearTimeout(_refreshTimeout);
         _refreshTimeout = null;
@@ -352,6 +383,12 @@ function signIn(authenticated, username) {
             }
             reject(ex);
         });
+
+        NetInfo.isConnected.addEventListener(
+            'connectionChange',
+            _handleConnectivityChange
+        );
+        AppState.addEventListener('change', _handleAppStateChange);
     });
 }
 
