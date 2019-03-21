@@ -1,11 +1,10 @@
 import React from 'react';
-import { View, Text, NetInfo, ConnectionType } from 'react-native';
+import { View, Text, NetInfo, ConnectionType, AsyncStorage } from 'react-native';
 import AwsExports from '../AwsExports';
 import Rides from './ride/Rides';
 import Home from './home/Home';
 import { IndicatorViewPager, PagerTabIndicator } from 'rn-viewpager';
 import Amplify, { Auth, Hub, API, graphqlOperation } from 'aws-amplify';
-import { AsyncStorage } from 'react-native';
 import * as mutations from '../src/graphql/mutations';
 import moment from 'moment';
 import { GoogleSignin } from 'react-native-google-signin';
@@ -30,6 +29,20 @@ export default class Main extends React.Component {
     }
 
     componentWillMount() {
+        AsyncStorage.getItem('signIn').then((signInInfoStr) => {
+            var signInInfo = JSON.parse(signInInfoStr);
+            var user = signInInfo.user;
+            var authenticated = signInInfo.authenticated;
+            if (this.user == null) {
+                this.setState({
+                    signedIn: true,
+                    user: user,
+                    authenticated: authenticated
+                });
+            }
+        }).catch((ex) => {
+            console.log("No saved user");
+        });
         this.netSubToken = NetManager.subscribe(this.onNetEvent);
     }
 
@@ -39,6 +52,7 @@ export default class Main extends React.Component {
 
     onNetEvent = (type, payload) => {
         if (type == "netSignIn") {
+            this.user = payload.user;
             this.setState({
                 signedIn: true,
                 user: payload.user,
@@ -48,7 +62,7 @@ export default class Main extends React.Component {
     }
 
     setPagingEnabled = (enabled) => {
-        console.log("IS PAGING ENABLED: ", enabled)
+        console.log("IS PAGING ENABLED: ", enabled);
         this.setState({
             isPagingEnabled: enabled
         });

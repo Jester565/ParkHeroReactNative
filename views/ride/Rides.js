@@ -1,5 +1,5 @@
 import React from 'react';
-import { Picker, StyleSheet, Image, TextInput, View, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Switch, Modal, TouchableWithoutFeedback } from 'react-native';
+import { AsyncStorage, View, FlatList, TouchableOpacity, ActivityIndicator, RefreshControl, Switch, Modal, TouchableWithoutFeedback } from 'react-native';
 import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Icon, Text, Avatar, Card, SearchBar, Slider } from 'react-native-elements';
 import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import * as Animatable from 'react-native-animatable';
@@ -50,7 +50,6 @@ export default class Rides extends React.Component {
             rideQuery: "",
             filterName: "",
             activeFilters: null,
-            selectedFilters: null,
             showFilters: false,
             sortMode: 'Name',
             sortAsc: true,
@@ -66,9 +65,93 @@ export default class Rides extends React.Component {
     }
 
     componentWillMount() {
-        console.log("SUBSCRIBE");
+        this.rideCachePromise = this.loadRideCache();
+        this.scheduleCachePromise = this.loadScheduleCache();
         this.netSubToken = NetManager.subscribe(this.handleNet);
     }
+
+    loadRideCache = () => {
+        return new Promise(async (resolve, reject) => {
+            var getParsedItem = async (key) => {
+                try {
+                    var result = await AsyncStorage.getItem(key);
+                    if (result != null) {
+                        return JSON.parse(result);
+                    }
+                } catch (e) {
+                    return null;
+                }
+            }
+            var promises = [
+                getParsedItem('rideMap'), 
+                getParsedItem('sortMode'), 
+                getParsedItem('sortAsc'), 
+                getParsedItem('filters'),
+                getParsedItem('activeFilters')];
+            
+            var results = await Promise.all(promises);
+            var rideMap = results[0];
+            var sortMode = results[1];
+            var sortAsc = results[2];
+            var filters = results[3];
+            var activeFilters = results[4];
+    
+            var newState = {};
+            if (sortMode != null) {
+                newState["sortMode"] = sortMode;
+            }
+            if (sortAsc != null) {
+                newState["sortAsc"] = sortAsc;
+            }
+            if (filters != null) {
+                newState["filters"] = filters;
+            }
+            if (activeFilters != null) {
+                newState["activeFilters"] = activeFilters;
+            }
+            console.log("FILTERS: ", JSON.stringify(filters));
+            console.log("ACTIVE FILTERS: ", JSON.stringify(activeFilters));
+            if (rideMap != null) {
+                var rides = [];
+                for (var rideID in rideMap) {
+                    var ride = rideMap[rideID];
+                    ride.visible = this.rideInFilter(rideID, 
+                        (activeFilters)? activeFilters: this.state.activeFilters, 
+                        (filters)? filters: this.state.filters);
+                    ride.selected = false;
+                    ride.signedPicUrl = 'https://s3-us-west-2.amazonaws.com/disneyapp3/' + ride["picUrl"] + '-1.webp';
+                    rides.push(ride);
+                } 
+                this.rideMap = rideMap;
+                this.sort(rides, (this.state.sortMode)? sortMode: this.state.sortMode, (this.state.sortAsc)? sortAsc: this.state.sortAsc, null);
+            }
+            if (Object.keys(newState).length > 0) {
+                this.setState(newState, () => {
+                    this.rideCachePromise = null;
+                });
+            } else {
+                this.rideCachePromise = null;
+            }
+            resolve(newState);
+        });
+    }
+
+    loadScheduleCache = () => {
+        return new Promise(async (resolve, reject) => {
+            var schedulesStr = await AsyncStorage.getItem("schedules");
+            if (schedulesStr != null) {
+                var schedules = JSON.parse(schedulesStr);
+                this.setState({
+                    schedules: schedules
+                }, () => {
+                    this.scheduleCachePromise = null;
+                });
+            } else {
+                this.scheduleCachePromise = null;
+            }
+            resolve(schedules);
+        });
+    };
 
     componentWillUnmount() {
         NetManager.unsubscribe(this.netSubToken);
@@ -82,7 +165,7 @@ export default class Rides extends React.Component {
 
     refreshAll = () => {
         this.refreshRides();
-        var schedulePromise = this.refreshSchedules();
+        this.refreshSchedules();
         //this.refreshPasses(schedulePromise);
         this.refreshWeather(moment());
         this.refreshFilters();
@@ -112,10 +195,10 @@ export default class Rides extends React.Component {
         });
     }
 
-    rideInFilter = (rideID, activeFilters) => {
+    rideInFilter = (rideID, activeFilters, filters) => {
         if (activeFilters != null) {
             for (var filterID in activeFilters) {
-                var filter = this.state.filters[filterID];
+                var filter = filters[filterID];
                 if (filter.rideIDs[rideID] == null) {
                     return false;
                 }
@@ -138,6 +221,8 @@ export default class Rides extends React.Component {
     }
 
     sort = (rides, sortMode, sortAsc, rideQuery) => {
+        AsyncStorage.setItem("sortMode", JSON.stringify(sortMode));
+        AsyncStorage.setItem("sortAsc", JSON.stringify(sortAsc));
         //Don't sort if user is querying rides
         if (rideQuery != null && rideQuery.length > 0) {
             rides.sort((ride1, ride2) => {
@@ -188,10 +273,12 @@ export default class Rides extends React.Component {
         var rides = this.state.rides.slice();
         for (var ride of rides) {
             var rideID = ride.id;
-            if (ride.visible != this.rideInFilter(rideID, activeFilters)) {
+            if (ride.visible != this.rideInFilter(rideID, activeFilters, this.state.filters)) {
                 ride.visible = !ride.visible;
             }
         }
+
+        AsyncStorage.setItem("activeFilters", JSON.stringify(activeFilters));
 
         this.setState({
             rides: rides,
@@ -224,6 +311,8 @@ export default class Rides extends React.Component {
             filters: filters
         });
 
+        AsyncStorage.setItem("filters", JSON.stringify(filters));
+
         API.graphql(graphqlOperation(mutations.updateFilter, { 
             filterName: filter.filterID, 
             rideIDs: Object.keys(filter.rideIDs),
@@ -240,6 +329,8 @@ export default class Rides extends React.Component {
         this.setState({
             filters: filters
         });
+
+        AsyncStorage.setItem("filters", JSON.stringify(filters));
 
         API.graphql(graphqlOperation(mutations.updateFilter, { 
             filterName: filter.filterID, 
@@ -266,6 +357,8 @@ export default class Rides extends React.Component {
             activeFilters: activeFilters
         });
     
+        AsyncStorage.setItem("filters", JSON.stringify(filters));
+
         API.graphql(graphqlOperation(mutations.deleteFilters, { filterNames: filterNames })).then((data) => {
             console.log("DELETE FILTERS"); 
         });
@@ -282,6 +375,9 @@ export default class Rides extends React.Component {
             filters[this.state.filterName] = filter;
         }
         filter["rideIDs"] = this.state.selectedRides;
+
+        AsyncStorage.setItem("filters", JSON.stringify(filters));
+
         this.setSelectedRides(null);
         this.setState({
             filters: filters,
@@ -406,6 +502,7 @@ export default class Rides extends React.Component {
                     notifyConfig: filter.watchConfig
                 };
             }
+            AsyncStorage.setItem("filters", JSON.stringify(localFilters));
             this.setState({
                 filters: localFilters
             });
@@ -445,23 +542,36 @@ export default class Rides extends React.Component {
     }
 
     refreshSchedules = () => {
+        var setSchedules = (data) => {
+            //Reformat flat array into map of dates to park schedules
+            var schedulesArr = data.data.getSchedules;
+            var schedulesMap = {};
+            for (var schedule of schedulesArr) {
+                var parkSchedules = schedulesMap[schedule.date];
+                if (parkSchedules == null) {
+                    parkSchedules = [];
+                    schedulesMap[schedule.date] = parkSchedules;
+                }
+                parkSchedules.push(schedule);
+            }
+            AsyncStorage.setItem("schedules", JSON.stringify(schedulesMap));
+            this.setState({
+                schedules: schedulesMap
+            });
+            return schedulesMap;
+        }
+
         return new Promise((resolve, reject) => {
             API.graphql(graphqlOperation(queries.getSchedules)).then((data) => {
-                //Reformat flat array into map of dates to park schedules
-                var schedulesArr = data.data.getSchedules;
-                var schedulesMap = {};
-                for (var schedule of schedulesArr) {
-                    var parkSchedules = schedulesMap[schedule.date];
-                    if (parkSchedules == null) {
-                        parkSchedules = [];
-                        schedulesMap[schedule.date] = parkSchedules;
-                    }
-                    parkSchedules.push(schedule);
+                if (this.scheduleCachePromise != null) {
+                    this.scheduleCachePromise.then(() => {
+                        var schedules = setSchedules(data);
+                        resolve(schedules);
+                    });
+                } else {
+                    var schedules = setSchedules(data);
+                    resolve(schedules);
                 }
-                this.setState({
-                    schedules: schedulesMap
-                });
-                resolve(schedulesMap);
             });
         });
     }
@@ -556,53 +666,70 @@ export default class Rides extends React.Component {
         this.setState({
             "refreshing": true
         });
-        var handleRideUpdate = (recvRides) => {
+        var handleRideUpdate = (recvRides, rideState) => {
             var rides = this.state.rides.slice();
             for (var recvRide of recvRides) {
                 var rideID = recvRide.id;
                 var ride = this.rideMap[rideID];
                 //New ride added, create new json structure in array and map
-                if (ride == null && recvRide.info != null) {
-                    //Add fields to track view of ride row
-                    ride = { key: rideID, id: rideID };
-                    this.rideMap[rideID] = ride;
-                    ride["visible"] = this.rideInFilter(rideID, this.state.activeFilters);
-                    //Could check if in selectedFilters but might not be desired behavior
-                    ride["selected"] = false;
+                if (recvRide.info != null) {
+                    var isNewRide = (ride == null);
+                    if (isNewRide) {
+                        //Add fields to track view of ride row
+                        ride = { key: rideID, id: rideID };
+                        this.rideMap[rideID] = ride;
+                        ride["visible"] = this.rideInFilter(
+                            rideID, 
+                            (rideState.activeFilters)? rideState.activeFilters: this.state.activeFilters,
+                            (rideState.filters)? rideState.filters: this.state.filters);
+                        //Could check if in selectedFilters but might not be desired behavior
+                        ride["selected"] = false;
+                    }
                     Object.assign(ride, recvRide.info);
 
                     if (ride["picUrl"] != ride["officialPicUrl"]) {
-                        this.getSignedUrl(rideID, ride["picUrl"], 1);
+                        ride.signedPicUrl = this.getSignedUrl(rideID, ride["picUrl"], 1);
                     } else {
                         ride.signedPicUrl = 'https://s3-us-west-2.amazonaws.com/disneyapp3/' + ride["picUrl"] + '-1.webp';
                     }
-                    rides.push(ride);
+                    if (isNewRide) {
+                        rides.push(ride);
+                    }
                 }
                 if (ride != null && recvRide.time != null) {
                     Object.assign(ride, recvRide.time);
                 }
             }
+            AsyncStorage.setItem("rideMap", JSON.stringify(this.rideMap));
 
-            //If rides were added, we must sort again
-            if (rides.length != this.state.rides.length) {
-                this.sort(rides, this.state.sortMode, this.state.sortAsc, this.state.rideQuery);
-            } else {
-                this.setState({
-                    rides: rides
-                });
-            }
+            this.sort(rides, 
+                (rideState.sortMode)? rideState.sortMode: this.state.sortMode, 
+                (rideState.sortAsc)? rideState.sortAsc: this.state.sortAsc, 
+                this.state.rideQuery);
         }
-        var updatePromise = API.graphql(graphqlOperation(mutations.getRideTimes));
-        API.graphql(graphqlOperation(queries.getRides)).then((data) => {
-            handleRideUpdate(data.data.getRides);
+        var handleUpdate = (data, rideState) => {
+            handleRideUpdate(data.data.getRides, rideState);
             updatePromise.then((data) => {
                 if (data.data.updateRides != null) {
-                    handleRideUpdate(data.data.updateRides);
+                    handleRideUpdate(data.data.updateRides, rideState);
                 }
                 this.setState({
                     refreshing: false
                 })
             });
+        }
+
+        var updatePromise = API.graphql(graphqlOperation(mutations.getRideTimes));
+        API.graphql(graphqlOperation(queries.getRides)).then((data) => {
+            if (this.rideCachePromise != null) {
+                this.rideCachePromise.then((rideState) => {
+                    console.log("RIDESTATE: ", JSON.stringify(rideState));
+                    handleUpdate(data, rideState);
+                });
+            } else {
+                console.log("RIDE CACHE PROMISE IS NULL");
+                handleUpdate(data, {});
+            }
         });
     }
 
