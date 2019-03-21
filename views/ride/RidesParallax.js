@@ -110,6 +110,7 @@ export default class RidesParallax extends React.Component {
                 <RefreshControl
                     refreshing={this.props.refreshing}
                     onRefresh={this.props.onRefresh}
+                    progressViewOffset={35}
                 />
             }
             backgroundColor={Theme.PRIMARY_BACKGROUND}

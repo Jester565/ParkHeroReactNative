@@ -87,7 +87,8 @@ export default class Rides extends React.Component {
                 getParsedItem('sortMode'), 
                 getParsedItem('sortAsc'), 
                 getParsedItem('filters'),
-                getParsedItem('activeFilters')];
+                getParsedItem('activeFilters'),
+                getParsedItem('lastRefresh')];
             
             var results = await Promise.all(promises);
             var rideMap = results[0];
@@ -95,6 +96,7 @@ export default class Rides extends React.Component {
             var sortAsc = results[2];
             var filters = results[3];
             var activeFilters = results[4];
+            var lastRefresh = results[5];
     
             var newState = {};
             if (sortMode != null) {
@@ -108,6 +110,9 @@ export default class Rides extends React.Component {
             }
             if (activeFilters != null) {
                 newState["activeFilters"] = activeFilters;
+            }
+            if (lastRefresh != null) {
+                newState["lastRefresh"] = lastRefresh;
             }
             console.log("FILTERS: ", JSON.stringify(filters));
             console.log("ACTIVE FILTERS: ", JSON.stringify(activeFilters));
@@ -713,9 +718,17 @@ export default class Rides extends React.Component {
                 if (data.data.updateRides != null) {
                     handleRideUpdate(data.data.updateRides, rideState);
                 }
+                var lastRefresh = moment().format();
+                this.setState({
+                    refreshing: false,
+                    lastRefresh: lastRefresh
+                });
+                AsyncStorage.setItem("lastRefresh", JSON.stringify(lastRefresh));
+            }).catch((ex) => {
                 this.setState({
                     refreshing: false
-                })
+                });
+                Toast.show("Rides Couldn't Refresh");
             });
         }
 
@@ -730,6 +743,11 @@ export default class Rides extends React.Component {
                 console.log("RIDE CACHE PROMISE IS NULL");
                 handleUpdate(data, {});
             }
+        }).catch((ex) => {
+            this.setState({
+                refreshing: false
+            });
+            Toast.show("Rides Couldn't Refresh");
         });
     }
 
@@ -773,9 +791,12 @@ export default class Rides extends React.Component {
     renderListHeader = () => {
         if (this.state.selectedRides == null) {
             return (<RidesHeader
+                refreshing={this.state.refreshing}
+                lastRefresh={this.state.lastRefresh}
                 schedules={this.state.schedules}
                 onRideQueryChanged={ this.updateRideQuery }
-                onDateTimeChanged={ this.updateDateTime } />);
+                onDateTimeChanged={ this.updateDateTime }
+                onReqRefresh={ this.refreshRides } />);
         } else {
             return (<RideFilterHeader 
                 filterID={this.state.filterName}
