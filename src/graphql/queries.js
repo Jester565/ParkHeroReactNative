@@ -28,11 +28,13 @@ export const getRides = `query GetRides {
 export const getSchedules = `query GetSchedules {
   getSchedules {
     parkName
+    parkIconUrl
     blockLevel
     crowdLevel
     openTime
     closeTime
     magicStartTime
+    magicEndTime
     date
   }
 }
@@ -117,6 +119,25 @@ export const getPartyPasses = `query GetPartyPasses {
       }
     }
     splitters
+  }
+}
+`;
+export const getFriendPasses = `query GetFriendPasses {
+  getFriendPasses {
+    user {
+      id
+      name
+      profilePicUrl
+    }
+    passes {
+      id
+      name
+      type
+      expirationDT
+      isPrimary
+      isEnabled
+      hasMaxPass
+    }
   }
 }
 `;

@@ -26,7 +26,7 @@ export default class RidesHeader extends React.Component {
         AppState.removeEventListener('change', this.handleAppStateChange);
     }
 
-    handleAppStateChange = () => {
+    handleAppStateChange = (nextAppState) => {
         if (this.refreshMessageUpdater != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
             clearInterval(this.refreshMessageUpdater);
         } else if (nextAppState == 'active' && (this.appState == 'background' || this.appState == 'inactive')) {
@@ -206,6 +206,9 @@ export default class RidesHeader extends React.Component {
                         schedules={this.props.schedules}
                         onDateTimeChanged={this.props.onDateTimeChanged}
                         showDateTimeModal={this.state.showDateTimeModal}
+                        userPasses={this.props.userPasses}
+                        onPassPress={this.props.onPassPress}
+                        navigation={this.props.navigation}
                         onDateTimeModalClosed={() => {
                             this.setState({
                                 showDateTimeModal: false

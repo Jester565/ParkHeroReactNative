@@ -574,7 +574,7 @@ export default class PassPager extends React.Component {
             )
         }
 
-        if (this.props.passes == null || this.props.passes.length == 0) {
+        if ((this.props.passes == null || this.props.passes.length == 0) && !this.props.loading) {
             return <View style={{
                 width: screenWidth,
                 height: screenHeight,

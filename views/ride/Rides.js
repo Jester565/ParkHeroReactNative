@@ -16,13 +16,15 @@ import RideFilters from './RideFilters';
 import RideFilterHeader from './RideFilterHeader';
 import RideList from './RideList';
 import PassList from '../pass/PassList';
-import { GetBlockLevel } from '../pass/PassLevel';
 import Theme from '../../Theme';
 import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
 import NetManager from '../../NetManager';
+import Collapsible from 'react-native-collapsible';
 
 Amplify.configure(AwsExports);
+
+var S3_URL = 'https://s3-us-west-2.amazonaws.com/disneyapp3/';
 
 export default class Rides extends React.Component {
     static navigationOptions = {
@@ -58,9 +60,11 @@ export default class Rides extends React.Component {
             filters: [],
             schedules: {},
             weathers: {},
-            userPasses: null,
+            friendPasses: null,
+            cangoPasses: null,
             refreshing: false,
-            parkI: 0
+            parkI: 0,
+            isPassCollapsed: true
         }
     }
 
@@ -114,8 +118,7 @@ export default class Rides extends React.Component {
             if (lastRefresh != null) {
                 newState["lastRefresh"] = lastRefresh;
             }
-            console.log("FILTERS: ", JSON.stringify(filters));
-            console.log("ACTIVE FILTERS: ", JSON.stringify(activeFilters));
+
             if (rideMap != null) {
                 var rides = [];
                 for (var rideID in rideMap) {
@@ -124,7 +127,7 @@ export default class Rides extends React.Component {
                         (activeFilters)? activeFilters: this.state.activeFilters, 
                         (filters)? filters: this.state.filters);
                     ride.selected = false;
-                    ride.signedPicUrl = 'https://s3-us-west-2.amazonaws.com/disneyapp3/' + ride["picUrl"] + '-1.webp';
+                    ride.signedPicUrl = S3_URL + ride["picUrl"] + '-1.webp';
                     rides.push(ride);
                 } 
                 this.rideMap = rideMap;
@@ -171,7 +174,7 @@ export default class Rides extends React.Component {
     refreshAll = () => {
         this.refreshRides();
         this.refreshSchedules();
-        //this.refreshPasses(schedulePromise);
+        this.refreshPasses();
         this.refreshWeather(moment());
         this.refreshFilters();
     }
@@ -483,8 +486,10 @@ export default class Rides extends React.Component {
                 waitMins = Math.round(waitMins / 5.0) * 5;
             }
             var ride = this.rideMap[rideID];
-            ride["waitTimePrediction"] = waitMins;
-            ride["fastPassTimePrediction"] = (fpTime != null)? fpTime.format("HH:mm:ss"): null;
+            if (ride != null) {
+                ride["waitTimePrediction"] = waitMins;
+                ride["fastPassTimePrediction"] = (fpTime != null)? fpTime.format("HH:mm:ss"): null;
+            }
         }
         this.setState({
             rides: rides
@@ -609,65 +614,20 @@ export default class Rides extends React.Component {
         });
     }
 
-    refreshPasses = (schedulePromise) => {
-        return new Promise((resolve, reject) => {
-            var promises = [];
-            promises.push(schedulePromise);
-            promises.push(API.graphql(graphqlOperation(queries.listFriendPasses)));
-            Promise.all(promises).then((results) => {
-                var data = results[1];
-                this.friendPasses = data.data.listFriendPasses;
-                this.updateBlackoutPasses(moment(), results[0]);
-                resolve();
+    refreshPasses = () => {
+        console.log("REFRESH PASSES");
+        API.graphql(graphqlOperation(queries.getFriendPasses)).then((data) => {
+            var friendPasses = data.data.getFriendPasses;
+            console.log("FRIEND PASSES: ", JSON.stringify(friendPasses));
+            this.setState({
+                friendPasses: friendPasses
             });
         });
     }
 
-    updateBlackoutPasses = (dateTime, schedules) => {
-        var date = this.getParkDateForDateTime(dateTime);
-        var parkSchedules = this.getParkSchedules(schedules, date);
-
-        var blockLevel = parkSchedules[this.state.parkI].blockLevel;
-
-        var userIDs = [];
-        var cangoPasses = {};
-        for (var userPasses of this.friendPasses) {
-            var userID = null;
-            var passes = [];
-            for (var pass of userPasses.passes) {
-                if (GetBlockLevel(pass.type) >= blockLevel) {
-                    if (userID == null) {
-                        userID = userPasses.user.id;
-                        userIDs.push(userID);
-                    }
-                    passes.push(pass);
-                }
-            }
-            if (userID != null) {
-                cangoPasses[userID] = passes;
-            }
-        }
-        console.log("USERIDS: ", userIDs);
-        if (userIDs.length > 0) {
-            API.graphql(graphqlOperation(queries.getUsers, { ids: userIDs })).then((data) => {
-                var users = data.data.getUsers;
-                for (var user of users) {
-                    var passes = cangoPasses[user.id];
-                    userPasses.push({ key: user.id, user: user, passes: passes });
-                }
-                console.log("USER PASSES UPDATED: ", JSON.stringify(userPasses));
-                this.setState({
-                    userPasses: userPasses
-                });
-            });
-        } else {
-            this.setState({
-                userPasses: null
-            });
-        }
-    }
-
     refreshRides = () => {
+        //TEMPORARY TO CUT BACK ON API CALLS
+        return;
         this.setState({
             "refreshing": true
         });
@@ -695,7 +655,7 @@ export default class Rides extends React.Component {
                     if (ride["picUrl"] != ride["officialPicUrl"]) {
                         ride.signedPicUrl = this.getSignedUrl(rideID, ride["picUrl"], 1);
                     } else {
-                        ride.signedPicUrl = 'https://s3-us-west-2.amazonaws.com/disneyapp3/' + ride["picUrl"] + '-1.webp';
+                        ride.signedPicUrl = S3_URL + ride["picUrl"] + '-1.webp';
                     }
                     if (isNewRide) {
                         rides.push(ride);
@@ -752,14 +712,13 @@ export default class Rides extends React.Component {
     }
 
     updateDateTime = (dateTime) => {
-        console.log("DATETIME SET: ", dateTime);
         if (dateTime != null) {
             this.refreshWeather(dateTime);
         }
         this.setState({
             dateTime: dateTime
         }, () => {
-            this.updateRideDPs()
+            this.updateRideDPs();
         });
     }
 
@@ -796,7 +755,10 @@ export default class Rides extends React.Component {
                 schedules={this.state.schedules}
                 onRideQueryChanged={ this.updateRideQuery }
                 onDateTimeChanged={ this.updateDateTime }
-                onReqRefresh={ this.refreshRides } />);
+                onReqRefresh={ this.refreshRides }
+                userPasses={this.state.friendPasses}
+                onPassPress={this.onPassPressed}
+                navigation={this.props.navigation} />);
         } else {
             return (<RideFilterHeader 
                 filterID={this.state.filterName}
@@ -836,6 +798,20 @@ export default class Rides extends React.Component {
         this.sort(rides, this.state.sortMode, this.state.sortAsc, this.state.rideQuery);
     }
 
+    changePassCollapsed = () => {
+        this.setState({
+            isPassCollapsed: !this.state.isPassCollapsed
+        });
+    }
+
+    onPassPressed = (user) => {
+        this.props.navigation.navigate('Profile', {
+            user: user,
+            isMe: (user.id == this.props.currentUserID),
+            authenticated: this.props.authenticated
+        });
+    }
+
     render() {
         var dateTime = this.state.dateTime;
         if (dateTime == null) {
@@ -844,6 +820,10 @@ export default class Rides extends React.Component {
         var date = this.getParkDateForDateTime(dateTime);
         var parkSchedules = this.getParkSchedules(this.state.schedules, date);
         var weather = this.getWeather(this.state.weathers, dateTime);
+        var blockLevel = null;
+        if (parkSchedules != null) {
+            blockLevel = parkSchedules[this.state.parkI].blockLevel;
+        }
         return (
         <View style={{ width: "100%", height: "100%" }}>
             <RidesParallax
@@ -854,11 +834,25 @@ export default class Rides extends React.Component {
                 renderHeader={this.renderListHeader}
                 onRefresh={this.refreshRides}
                 onParkIChanged={this.onParkIChanged}>
-                    {
-                        (this.state.userPasses != null)?
-                            (<PassList 
-                                userPasses={this.state.userPasses} />): null
-                    }
+                    <TouchableOpacity style={{
+                        width: "100%"
+                    }}
+                    onPress={this.changePassCollapsed}>
+                        <Text style={{
+                            color: Theme.PRIMARY_FOREGROUND,
+                            fontSize: 24,
+                            textAlign: 'center'
+                        }}>
+                            Blackouts
+                        </Text>
+                    </TouchableOpacity>
+                    <Collapsible collapsed={this.state.isPassCollapsed}>
+                        <PassList 
+                            userPasses={this.state.friendPasses}
+                            blockLevel={blockLevel}
+                            onPress={this.onPassPressed}
+                            onLongPress={this.onPassPressed} />
+                    </Collapsible>
 
                     <RideList 
                         rides={this.state.rides}

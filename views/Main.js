@@ -119,7 +119,10 @@ export default class Main extends React.Component {
                     {
                         (this.state.signedIn)?
                         (
-                            <Rides navigation={this.props.navigation} />
+                            <Rides 
+                                navigation={this.props.navigation}
+                                currentUserID={(this.state.user != null)? this.state.user.id: null}
+                                authenticated={this.state.authenticated} />
                         ): null
                     }
                 </View>

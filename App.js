@@ -4,6 +4,7 @@ import Authenticator from './views/auth/Authenticator';
 import Profile from './views/profile/Profile';
 import PassPicker from './views/pass/PassPicker';
 import Friends from './views/profile/Friends';
+import ScheduleCalendar from './views/ride/ScheduleCalendar';
 import { createStackNavigator, createAppContainer } from 'react-navigation';
 import Theme from './Theme';
 import NetManager from './NetManager';
@@ -16,7 +17,8 @@ const navigator = createStackNavigator({
     Profile: {screen: Profile},
     Ride: {screen: Ride},
     PassPicker: {screen: PassPicker},
-    Friends: {screen: Friends}
+    Friends: {screen: Friends},
+    ScheduleCalendar: {screen: ScheduleCalendar}
   }, {
     cardStyle: {
       backgroundColor: Theme.SECONDARY_BACKGROUND

@@ -1,8 +1,9 @@
 import React from 'react';
-import { Text, View, ActivityIndicator } from 'react-native';
+import { Text, View, ActivityIndicator, Modal } from 'react-native';
 import { Icon, Slider } from 'react-native-elements';
 import Theme from '../../Theme';
 import moment from 'moment';
+import ScheduleCalendar from './ScheduleCalendar';
 import DateTimePicker from 'react-native-modal-datetime-picker';
 
 export default class RidesDateTimeSelector extends React.Component {
@@ -24,6 +25,30 @@ export default class RidesDateTimeSelector extends React.Component {
     componentWillReceiveProps(newProps) {
         if (newProps.schedules != null && this.state.dateTime == null) {
             this.initSchedules(newProps);
+        }
+        if (newProps.showDateTimeModal && !this.props.showDateTimeModal) {
+            this.props.navigation.navigate('ScheduleCalendar', {
+                schedules: newProps.schedules,
+                userPasses: newProps.userPasses,
+                dateTime: newProps.dateTime,
+                onPassPress: newProps.onPassPress,
+                onDateSelected: this.onTimeModalSubmit
+            });
+
+            this.navListener = this.props.navigation.addListener(
+                'willFocus',
+                (payload) => {
+                    console.log("FOCUSED: ", JSON.stringify(payload));
+                    this.props.onDateTimeModalClosed();
+                }
+            );
+        } 
+    }
+
+    componentWillUnmount() {
+        if (this.navListener != null) {
+            this.navListener.remove();
+            this.navListener = null;
         }
     }
     
@@ -130,12 +155,12 @@ export default class RidesDateTimeSelector extends React.Component {
         return rangedDateTime;
     }
 
-    onTimeModalSubmit = (selectedDateTime, schedules) => {
+    onTimeModalSubmit = (selectedDateTime) => {
         if (selectedDateTime.hours() <= 4) {
             selectedDateTime.add(4, 'hours');
         }
         var selectedDate = this.getParkDateForDateTime(selectedDateTime);
-        var parkSchedules = this.getParkSchedules(selectedDate, schedules);
+        var parkSchedules = this.getParkSchedules(selectedDate, this.props.schedules);
         var resortDateTimes = this.getResortDateTimes(selectedDate, parkSchedules);
         var rangedDateTime = this.getRangedDateTime(selectedDateTime, resortDateTimes);
         this.setState({
@@ -209,17 +234,21 @@ export default class RidesDateTimeSelector extends React.Component {
                     containerStyle={{ textAlign: "center", width: 50, height: 50 }}
                     onPress={() => { this.setDayOffset(dayOffset + 1, dayOffset, dateTime, this.props.schedules)}} />
             </View>
-            <DateTimePicker
-                minimumDate={moment(this.state.nowDate).subtract(-this.state.minDayOffset, 'days').toDate()}
-                maximumDate={moment(this.state.nowDate).add(this.state.maxDayOffset, 'days').toDate()}
-                isVisible={this.props.showDateTimeModal}
-                onConfirm={(selectedDateTime) => { this.onTimeModalSubmit(moment(selectedDateTime), this.props.schedules) }}
-                onCancel={() => {
-                    this.props.onDateTimeModalClosed();
-                }}
-                date={dateTime.toDate()}
-                mode="datetime"
-                />
+            {
+                /*
+                    <Modal
+            animationType="slide"
+            visible={this.props.showDateTimeModal}
+            onRequestClose={this.props.onDateTimeModalClosed}>
+                <ScheduleCalendar
+                    schedules={this.props.schedules}
+                    userPasses={this.props.userPasses}
+                    dateTime={this.state.dateTime}
+                    onPassPress={this.props.onPassPress}
+                    onDateSelected={this.onTimeModalSubmit} />
+            </Modal>
+                */
+            }
         </View>);
     }
 };
