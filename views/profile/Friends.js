@@ -57,6 +57,8 @@ export default class Friends extends React.Component {
         Hub.listen('leaveParty', this, 'Friends-LeaveParty');
         Hub.listen('acceptPartyInvite', this, 'Friends-AcceptPartyInvite');
         Hub.listen('deleteInvite', this, 'Friends-DeleteInvite');
+
+        this.netSubToken = NetManager.subscribe(this.handleNet);
     }
 
     refreshAll = () => {
@@ -75,7 +77,12 @@ export default class Friends extends React.Component {
     }
 
     componentWillUnmount() {
-        this.focusListener.remove();
+        if (this.focusListener != null) {
+            this.focusListener.remove();
+        }
+        if (this.netSubToken != null) {
+            NetManager.unsubscribe(this.netSubToken);
+        }
     }
 
     // Default handler for listening events

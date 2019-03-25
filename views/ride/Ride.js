@@ -269,17 +269,14 @@ export default class Ride extends React.Component {
                     });
                 }
             });
-            API.graphql(graphqlOperation(mutations.updateCustomRideInfo, { 
-                rideID: ride.id, 
+            API.graphql(graphqlOperation(mutations.updateCustomAttractionInfo, { 
+                attractionID: ride.id, 
                 customName: customName, 
                 pics: picPayload })).then((data) => {
-                    var rideData = data.data.updateCustomRideInfo;
+                    var attractionInfo = data.data.updateCustomAttractionInfo;
                     console.log("PICS: ", JSON.stringify(this.state.pics));
-                    var newRide = {
-                        id: rideData.id
-                    };
-                    Object.assign(newRide, rideData.info);
-                    Object.assign(newRide, rideData.time);
+                    var newRide = Object.assign({}, this.state.ride);
+                    newRide = Object.assign(newRide, attractionInfo);
                     var pics = this.getPics(newRide);
                     console.log("NEW PICS: ", JSON.stringify(pics));
                     this.setState({

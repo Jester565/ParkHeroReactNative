@@ -44,31 +44,24 @@ export const getRideTimes = `mutation GetRideTimes {
   }
 }
 `;
-export const updateCustomRideInfo = `mutation UpdateCustomRideInfo(
-  $rideID: String!
+export const updateCustomAttractionInfo = `mutation UpdateCustomAttractionInfo(
+  $attractionID: String!
   $customName: String
   $pics: [Pic]
 ) {
-  updateCustomRideInfo(rideID: $rideID, customName: $customName, pics: $pics) {
-    id
-    info {
-      name
-      officialName
-      picUrl
-      officialPicUrl
-      land
-      height
-      labels
-      customPicUrls
-    }
-    time {
-      status
-      waitTime
-      fastPassTime
-      waitRating
-      changedTime
-      changedRange
-    }
+  updateCustomAttractionInfo(
+    attractionID: $attractionID
+    customName: $customName
+    pics: $pics
+  ) {
+    name
+    officialName
+    picUrl
+    officialPicUrl
+    land
+    height
+    labels
+    customPicUrls
   }
 }
 `;
@@ -91,18 +84,20 @@ export const verifySns = `mutation VerifySns(
 `;
 export const updateFilter = `mutation UpdateFilter(
   $filterName: String
-  $rideIDs: [String]
+  $attractionIDs: [String]
+  $filterType: String
   $watchConfig: WatchConfigInput
 ) {
   updateFilter(
     filterName: $filterName
-    rideIDs: $rideIDs
+    attractionIDs: $attractionIDs
+    filterType: $filterType
     watchConfig: $watchConfig
   )
 }
 `;
-export const deleteFilters = `mutation DeleteFilters($filterNames: [String]) {
-  deleteFilters(filterNames: $filterNames)
+export const deleteFilters = `mutation DeleteFilters($filterNames: [String], $filterType: String) {
+  deleteFilters(filterNames: $filterNames, filterType: $filterType)
 }
 `;
 export const updateSplitters = `mutation UpdateSplitters($groupID: String!, $action: String!) {

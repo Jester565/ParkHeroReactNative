@@ -72,7 +72,8 @@ export const getRideDPs = `query GetRideDPs($date: String!, $rideID: String) {
 export const getFilters = `query GetFilters {
   getFilters {
     name
-    rideIDs
+    attractionIDs
+    type
     watchConfig {
       waitTime
       waitRating
@@ -175,6 +176,23 @@ export const getInvites = `query GetInvites {
       name
       profilePicUrl
     }
+  }
+}
+`;
+export const getEvents = `query GetEvents($date: String) {
+  getEvents(date: $date) {
+    id
+    info {
+      name
+      officialName
+      picUrl
+      officialPicUrl
+      land
+      height
+      labels
+      customPicUrls
+    }
+    dateTimes
   }
 }
 `;

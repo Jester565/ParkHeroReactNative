@@ -239,6 +239,30 @@
           },
           "isDeprecated" : false,
           "deprecationReason" : null
+        }, {
+          "name" : "getEvents",
+          "description" : null,
+          "args" : [ {
+            "name" : "date",
+            "description" : null,
+            "type" : {
+              "kind" : "SCALAR",
+              "name" : "String",
+              "ofType" : null
+            },
+            "defaultValue" : null
+          } ],
+          "type" : {
+            "kind" : "LIST",
+            "name" : null,
+            "ofType" : {
+              "kind" : "OBJECT",
+              "name" : "Event",
+              "ofType" : null
+            }
+          },
+          "isDeprecated" : false,
+          "deprecationReason" : null
         } ],
         "inputFields" : null,
         "interfaces" : [ ],
@@ -269,7 +293,7 @@
           "args" : [ ],
           "type" : {
             "kind" : "OBJECT",
-            "name" : "RideInfo",
+            "name" : "AttractionInfo",
             "ofType" : null
           },
           "isDeprecated" : false,
@@ -301,7 +325,7 @@
         "possibleTypes" : null
       }, {
         "kind" : "OBJECT",
-        "name" : "RideInfo",
+        "name" : "AttractionInfo",
         "description" : null,
         "fields" : [ {
           "name" : "name",
@@ -853,7 +877,7 @@
           "isDeprecated" : false,
           "deprecationReason" : null
         }, {
-          "name" : "rideIDs",
+          "name" : "attractionIDs",
           "description" : null,
           "args" : [ ],
           "type" : {
@@ -864,6 +888,17 @@
               "name" : "String",
               "ofType" : null
             }
+          },
+          "isDeprecated" : false,
+          "deprecationReason" : null
+        }, {
+          "name" : "type",
+          "description" : null,
+          "args" : [ ],
+          "type" : {
+            "kind" : "SCALAR",
+            "name" : "String",
+            "ofType" : null
           },
           "isDeprecated" : false,
           "deprecationReason" : null
@@ -1195,6 +1230,56 @@
         "possibleTypes" : null
       }, {
         "kind" : "OBJECT",
+        "name" : "Event",
+        "description" : null,
+        "fields" : [ {
+          "name" : "id",
+          "description" : null,
+          "args" : [ ],
+          "type" : {
+            "kind" : "NON_NULL",
+            "name" : null,
+            "ofType" : {
+              "kind" : "SCALAR",
+              "name" : "String",
+              "ofType" : null
+            }
+          },
+          "isDeprecated" : false,
+          "deprecationReason" : null
+        }, {
+          "name" : "info",
+          "description" : null,
+          "args" : [ ],
+          "type" : {
+            "kind" : "OBJECT",
+            "name" : "AttractionInfo",
+            "ofType" : null
+          },
+          "isDeprecated" : false,
+          "deprecationReason" : null
+        }, {
+          "name" : "dateTimes",
+          "description" : null,
+          "args" : [ ],
+          "type" : {
+            "kind" : "LIST",
+            "name" : null,
+            "ofType" : {
+              "kind" : "SCALAR",
+              "name" : "String",
+              "ofType" : null
+            }
+          },
+          "isDeprecated" : false,
+          "deprecationReason" : null
+        } ],
+        "inputFields" : null,
+        "interfaces" : [ ],
+        "enumValues" : null,
+        "possibleTypes" : null
+      }, {
+        "kind" : "OBJECT",
         "name" : "Mutation",
         "description" : null,
         "fields" : [ {
@@ -1262,10 +1347,10 @@
           "isDeprecated" : false,
           "deprecationReason" : null
         }, {
-          "name" : "updateCustomRideInfo",
+          "name" : "updateCustomAttractionInfo",
           "description" : null,
           "args" : [ {
-            "name" : "rideID",
+            "name" : "attractionID",
             "description" : null,
             "type" : {
               "kind" : "NON_NULL",
@@ -1302,7 +1387,7 @@
           } ],
           "type" : {
             "kind" : "OBJECT",
-            "name" : "Ride",
+            "name" : "AttractionInfo",
             "ofType" : null
           },
           "isDeprecated" : false,
@@ -1371,7 +1456,7 @@
             },
             "defaultValue" : null
           }, {
-            "name" : "rideIDs",
+            "name" : "attractionIDs",
             "description" : null,
             "type" : {
               "kind" : "LIST",
@@ -1381,6 +1466,15 @@
                 "name" : "String",
                 "ofType" : null
               }
+            },
+            "defaultValue" : null
+          }, {
+            "name" : "filterType",
+            "description" : null,
+            "type" : {
+              "kind" : "SCALAR",
+              "name" : "String",
+              "ofType" : null
             },
             "defaultValue" : null
           }, {
@@ -1414,6 +1508,15 @@
                 "name" : "String",
                 "ofType" : null
               }
+            },
+            "defaultValue" : null
+          }, {
+            "name" : "filterType",
+            "description" : null,
+            "type" : {
+              "kind" : "SCALAR",
+              "name" : "String",
+              "ofType" : null
             },
             "defaultValue" : null
           } ],

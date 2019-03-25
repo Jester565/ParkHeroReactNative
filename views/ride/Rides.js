@@ -47,17 +47,19 @@ export default class Rides extends React.Component {
         this.rideDPs = {};
 
         this.state = {
+            mode: 'ride',  //Can be ride or events
             dateTime: null,
-            selectedRides: null,
+            selectedAttractions: null,
             rideQuery: "",
             filterName: "",
-            activeFilters: null,
+            activeRideFilters: null,
             showFilters: false,
             sortMode: 'Name',
             sortAsc: true,
             //network state
             rides: [],
-            filters: [],
+            events: [],
+            rideFilters: [],
             schedules: {},
             weathers: {},
             friendPasses: null,
@@ -90,16 +92,16 @@ export default class Rides extends React.Component {
                 getParsedItem('rideMap'), 
                 getParsedItem('sortMode'), 
                 getParsedItem('sortAsc'), 
-                getParsedItem('filters'),
-                getParsedItem('activeFilters'),
+                getParsedItem('rideFilters'),
+                getParsedItem('activeRideFilters'),
                 getParsedItem('lastRefresh')];
             
             var results = await Promise.all(promises);
             var rideMap = results[0];
             var sortMode = results[1];
             var sortAsc = results[2];
-            var filters = results[3];
-            var activeFilters = results[4];
+            var rideFilters = results[3];
+            var activeRideFilters = results[4];
             var lastRefresh = results[5];
     
             var newState = {};
@@ -109,11 +111,11 @@ export default class Rides extends React.Component {
             if (sortAsc != null) {
                 newState["sortAsc"] = sortAsc;
             }
-            if (filters != null) {
-                newState["filters"] = filters;
+            if (rideFilters != null) {
+                newState["rideFilters"] = rideFilters;
             }
-            if (activeFilters != null) {
-                newState["activeFilters"] = activeFilters;
+            if (activeRideFilters != null) {
+                newState["activeRideFilters"] = activeRideFilters;
             }
             if (lastRefresh != null) {
                 newState["lastRefresh"] = lastRefresh;
@@ -123,9 +125,9 @@ export default class Rides extends React.Component {
                 var rides = [];
                 for (var rideID in rideMap) {
                     var ride = rideMap[rideID];
-                    ride.visible = this.rideInFilter(rideID, 
-                        (activeFilters)? activeFilters: this.state.activeFilters, 
-                        (filters)? filters: this.state.filters);
+                    ride.visible = this.attractionInFilter(rideID, 
+                        (activeRideFilters)? activeRideFilters: this.state.activeRideFilters, 
+                        (rideFilters)? rideFilters: this.state.rideFilters);
                     ride.selected = false;
                     ride.signedPicUrl = S3_URL + ride["picUrl"] + '-1.webp';
                     rides.push(ride);
@@ -172,7 +174,8 @@ export default class Rides extends React.Component {
     }
 
     refreshAll = () => {
-        this.refreshRides();
+        //TODO: Refresh Rides every load
+        //this.refreshRides();
         this.refreshSchedules();
         this.refreshPasses();
         this.refreshWeather(moment());
@@ -181,7 +184,6 @@ export default class Rides extends React.Component {
 
     getSignedUrl = (rideID, url, sizeI) => {
         var key = url + '-' + sizeI.toString() + '.webp';
-        console.log("GET SIGNED URL: ", key);
         if (this.signPromises[key] != null) {
             return this.signedUrls[key];
         }
@@ -203,11 +205,11 @@ export default class Rides extends React.Component {
         });
     }
 
-    rideInFilter = (rideID, activeFilters, filters) => {
+    attractionInFilter = (attractionID, activeFilters, filters) => {
         if (activeFilters != null) {
             for (var filterID in activeFilters) {
                 var filter = filters[filterID];
-                if (filter.rideIDs[rideID] == null) {
+                if (filter.attractionIDs[attractionID] == null) {
                     return false;
                 }
             }
@@ -277,128 +279,155 @@ export default class Rides extends React.Component {
         });
     }
 
-    setActiveFilters = (activeFilters) => {
-        var rides = this.state.rides.slice();
-        for (var ride of rides) {
-            var rideID = ride.id;
-            if (ride.visible != this.rideInFilter(rideID, activeFilters, this.state.filters)) {
-                ride.visible = !ride.visible;
-            }
-        }
-
-        AsyncStorage.setItem("activeFilters", JSON.stringify(activeFilters));
+    setActiveRideFilters = (activeFilters) => {
+        var rides = this.filterAttractions(activeFilters, this.state.rideFilters, this.state.rides);
+        AsyncStorage.setItem("activeRideFilters", JSON.stringify(activeFilters));
 
         this.setState({
-            rides: rides,
-            activeFilters: activeFilters
+            "rides": rides,
+            "activeRideFilters": activeFilters
         });
     }
 
+    filterAttractions = (activeFilters, filters, arr) => {
+        var attractions = arr.slice();
+        for (var attraction of attractions) {
+            var attractionID = attraction.id;
+            if (attraction.visible != this.attractionInFilter(attractionID, activeFilters, filters)) {
+                attraction.visible = !attraction.visible;
+            }
+        }
+        return attractions;
+    }
+
     editFilters = (filters) => {
-        var selectedRides = {};
+        var selectedAttractions = {};
         for (var filter of filters) {
-            for (var rideID in filter.rideIDs) {
-                selectedRides[rideID] = true;
+            for (var attractionID in filter.attractionIDs) {
+                selectedAttractions[attractionID] = true;
             }
         }
         var filterName = '';
         if (filters.length == 1) {
             filterName = filters[0].filterID;
         }
-        this.setSelectedRides(selectedRides);
+        if (this.state.mode == 'ride') {
+            this.setSelectedRides(selectedAttractions);
+        } else {
+            this.setSelectedEvents(selectedAttractions);
+        }
         this.setState({
             filterName: filterName
         });
     }
 
-    watchFilter = (filterID, notifyConfig) => {
-        var filters = this.state.filters;
+    watchRideFilter = (filterID, notifyConfig) => {
+        var filters = Object.assign({}, this.state.rideFilters);
         var filter = filters[filterID];
         filter["notifyConfig"] = notifyConfig
         this.setState({
-            filters: filters
+            rideFilters: filters
         });
 
-        AsyncStorage.setItem("filters", JSON.stringify(filters));
+        AsyncStorage.setItem("rideFilters", JSON.stringify(filters));
 
         API.graphql(graphqlOperation(mutations.updateFilter, { 
             filterName: filter.filterID, 
-            rideIDs: Object.keys(filter.rideIDs),
-            watchConfig: notifyConfig
+            attractionIDs: Object.keys(filter.attractionIDs),
+            watchConfig: notifyConfig,
+            filterType: 'ride'
         })).then((data) => {
-            console.log("WATCH FILTER"); 
+            console.log("WATCHED FILTER"); 
         });
     }
 
-    unwatchFilter = (filterID) => {
-        var filters = this.state.filters;
+    unwatchRideFilter = (filterID) => {
+        var filters = Object.assign({}, this.state.rideFilters);
         var filter = filters[filterID];
         filter["notifyConfig"] = null;
         this.setState({
-            filters: filters
+            rideFilters: filters
         });
 
-        AsyncStorage.setItem("filters", JSON.stringify(filters));
+        AsyncStorage.setItem("rideFilters", JSON.stringify(filters));
 
         API.graphql(graphqlOperation(mutations.updateFilter, { 
             filterName: filter.filterID, 
-            rideIDs: Object.keys(filter.rideIDs),
-            watchConfig: null
+            attractionIDs: Object.keys(filter.attractionIDs),
+            watchConfig: null,
+            filterType: 'ride'
         })).then((data) => {
             console.log("UNWATCH FILTER"); 
         });
     }
 
-    deleteFilters = (deleteFilters) => {
-        var filters = this.state.filters;
-        var activeFilters = this.state.activeFilters;
+    deleteRideFilters = (deleteFilters) => {
+        var result = this.deleteFilters(deleteFilters, this.state.rideFilters, this.state.activeRideFilters, 'ride');
+        var rideFilters = result["filters"];
+        var activeRideFilters = result["activeFilters"];
+        AsyncStorage.setItem("rideFilters", JSON.stringify(rideFilters));
+        AsyncStorage.setItem("activeRideFilters", JSON.stringify(activeRideFilters));
+        this.setState({
+            rideFilters: rideFilters,
+            activeRideFilters: activeRideFilters
+        });
+    }
+
+    deleteFilters = (deleteFilters, filters, activeFilters, type) => {
+        var newFilters = Object.assign({}, filters);
         var filterNames = [];
         for (var filter of deleteFilters) {
             filterNames.push(filter.filterID);
             if (activeFilters != null) {
                 delete activeFilters[filter.filterID];
             }
-            delete filters[filter.filterID];
+            delete newFilters[filter.filterID];
         }
-        this.setState({
-            filter: filters,
-            activeFilters: activeFilters
-        });
-    
-        AsyncStorage.setItem("filters", JSON.stringify(filters));
 
-        API.graphql(graphqlOperation(mutations.deleteFilters, { filterNames: filterNames })).then((data) => {
+        API.graphql(graphqlOperation(mutations.deleteFilters, { filterNames: filterNames, filterType: type })).then((data) => {
             console.log("DELETE FILTERS"); 
         });
+        return {
+            filters: newFilters,
+            activeFilters: activeFilters
+        };
     }
 
-    saveFilter = () => {
-        var filters = this.state.filters;
+    saveRideFilter = () => {
+        var rideFilters = this.saveFilter(this.state.rideFilters, 'ride');
+        AsyncStorage.setItem("rideFilters", JSON.stringify(rideFilters));
+
+        this.setState({
+            rideFilters: rideFilters,
+            filterName: ''
+        });
+
+        this.setSelectedRides(null);
+    }
+
+    saveFilter = (filters, type) => {
+        var newFilters = Object.assign({}, filters);
         var filter = filters[this.state.filterName];
         if (filter == null) {
             filter = { 
                 key: this.state.filterName,
-                filterID: this.state.filterName 
+                filterID: this.state.filterName,
+                type: type
             };
-            filters[this.state.filterName] = filter;
+            newFilters[this.state.filterName] = filter;
         }
-        filter["rideIDs"] = this.state.selectedRides;
-
-        AsyncStorage.setItem("filters", JSON.stringify(filters));
-
-        this.setSelectedRides(null);
-        this.setState({
-            filters: filters,
-            filterName: ''
-        });
+        filter["attractionIDs"] = this.state.selectedAttractions;
 
         API.graphql(graphqlOperation(mutations.updateFilter, { 
             filterName: filter.filterID, 
-            rideIDs: Object.keys(filter.rideIDs),
-            watchConfig: filter.notifyConfig 
+            attractionIDs: Object.keys(filter.attractionIDs),
+            watchConfig: filter.notifyConfig,
+            filterType: filter.type
         })).then((data) => {
             console.log("UPDATE FILTER"); 
         });
+
+        return newFilters;
     }
 
     getParkDateForDateTime = (dateTime) => {
@@ -423,17 +452,44 @@ export default class Rides extends React.Component {
         return null;
     }
 
-    setSelectedRides = (selectedRides) => {
-        var rides = this.state.rides.slice();
-        for (var ride of rides) {
-            var rideID = ride.id;
-            var selected = (selectedRides != null && selectedRides[rideID] != null);
-            ride.selected = selected;
+    //TODO
+    setSelectedEvents = (selectedEvents) => {
+        var events = this.state.events.slice();
+        for (var event of events) {
+            var eventID = event.id;
+            var selected = (selectedEvents != null && selectedEvents[eventID] != null);
+            event.selected= selected;
         }
         this.setState({
+            events: events,
+            selectedEvents: selectedEvents
+        })
+    }
+
+    setSelectedRides = (selectedRides) => {
+        var rides = this.setSelectedAttractions(selectedRides, this.state.rides);
+        this.setState({
             rides: rides,
-            selectedRides: selectedRides
+            selectedAttractions: selectedRides
         });
+    }
+
+    setSelectedEvents = (selectedEvents) => {
+        var events = this.setSelectedAttractions(selectedEvents, this.state.events);
+        this.setState({
+            events: events,
+            selectedAttractions: selectedEvents
+        });
+    }
+
+    setSelectedAttractions = (selectedAttractions, attractionArr) => {
+        var attractions = attractionArr.slice();
+        for (var attraction of attractions) {
+            var attractionID = attraction.id;
+            var selected = (selectedAttractions != null && selectedAttractions[attractionID] != null);
+            attraction.selected = selected;
+        }
+        return attractions;
     }
 
     setRideDPs = (allRideDPs) => {
@@ -499,22 +555,31 @@ export default class Rides extends React.Component {
     refreshFilters = () => {
         API.graphql(graphqlOperation(queries.getFilters)).then((data) => {
             var filters = data.data.getFilters;
-            var localFilters = {};
+            var rideFilters = {};
+            var eventFilters = {};
             for (var filter of filters) {
-                var rideIDsMap = {};
-                for (var rideID of filter.rideIDs) {
-                    rideIDsMap[rideID] = true;
+                var attractionIDsMap = {};
+                for (var attractionID of filter.attractionIDs) {
+                    attractionIDsMap[attractionID] = true;
                 }
-                localFilters[filter.name] = {
+                var localFilter = {
                     key: filter.name,
                     filterID: filter.name,
-                    rideIDs: rideIDsMap,
+                    attractionIDs: attractionIDsMap,
+                    type: filter.type,
                     notifyConfig: filter.watchConfig
                 };
+                if (localFilter.type == 'ride') {
+                    rideFilters[filter.name] = localFilter;
+                } else {
+                    eventFilters[filter.name] = localFilter;
+                }
             }
-            AsyncStorage.setItem("filters", JSON.stringify(localFilters));
+            AsyncStorage.setItem("rideFilters", JSON.stringify(rideFilters));
+            AsyncStorage.setItem("eventFilters", JSON.stringify(eventFilters));
             this.setState({
-                filters: localFilters
+                rideFilters: rideFilters,
+                eventFilters: eventFilters
             });
         });
     }
@@ -627,7 +692,6 @@ export default class Rides extends React.Component {
 
     refreshRides = () => {
         //TEMPORARY TO CUT BACK ON API CALLS
-        return;
         this.setState({
             "refreshing": true
         });
@@ -643,10 +707,10 @@ export default class Rides extends React.Component {
                         //Add fields to track view of ride row
                         ride = { key: rideID, id: rideID };
                         this.rideMap[rideID] = ride;
-                        ride["visible"] = this.rideInFilter(
+                        ride["visible"] = this.attractionInFilter(
                             rideID, 
-                            (rideState.activeFilters)? rideState.activeFilters: this.state.activeFilters,
-                            (rideState.filters)? rideState.filters: this.state.filters);
+                            (rideState.activeRideFilters)? rideState.activeRideFilters: this.state.activeRideFilters,
+                            (rideState.rideFilters)? rideState.rideFilters: this.state.rideFilters);
                         //Could check if in selectedFilters but might not be desired behavior
                         ride["selected"] = false;
                     }
@@ -730,6 +794,7 @@ export default class Rides extends React.Component {
 
     cancelFilterName = () => {
         this.setSelectedRides(null);
+        this.setSelectedEvents(null);
         this.setState({
             filterName: ''
         });
@@ -748,7 +813,7 @@ export default class Rides extends React.Component {
     }
 
     renderListHeader = () => {
-        if (this.state.selectedRides == null) {
+        if (this.state.selectedAttractions == null) {
             return (<RidesHeader
                 refreshing={this.state.refreshing}
                 lastRefresh={this.state.lastRefresh}
@@ -762,8 +827,8 @@ export default class Rides extends React.Component {
         } else {
             return (<RideFilterHeader 
                 filterID={this.state.filterName}
-                filters={this.state.fitlers}
-                onSaveFilter={this.saveFilter}
+                filters={this.state.rideFilters}
+                onSaveFilter={this.saveRideFilter}
                 onFilterIDChanged={ this.updateFilterName }
                 onFilterEditCancelled={ this.cancelFilterName } />)
         }
@@ -859,7 +924,7 @@ export default class Rides extends React.Component {
                         predicting={this.state.dateTime != null}
                         filters={this.state.fitlers}
                         activeFilters={this.state.activeFilters}
-                        selectedRides={this.state.selectedRides}
+                        selectedRides={this.state.selectedAttractions}
                         onSelectedRidesChanged={this.setSelectedRides}
                         openRide={this.openRide} />
                     <View style={{
@@ -870,17 +935,17 @@ export default class Rides extends React.Component {
             </RidesParallax>
             { (this.state.showFilters)?
                 (<RideFilters
-                    filters={this.state.filters}
-                    activeFilters={this.state.activeFilters}
+                    filters={this.state.rideFilters}
+                    activeFilters={this.state.activeRideFilters}
                     sortMode={this.state.sortMode}
                     sortAsc={this.state.sortAsc}
                     onSortModeChanged={ this.updateSortMode }
                     onSortAscChanged={ this.updateSortAsc }
-                    onWatch={this.watchFilter}
-                    onUnwatch={this.unwatchFilter}
-                    onActiveFiltersChanged={this.setActiveFilters}
+                    onWatch={this.watchRideFilter}
+                    onUnwatch={this.unwatchRideFilter}
+                    onActiveFiltersChanged={this.setActiveRideFilters}
                     onEditFilters={this.editFilters}
-                    onDeleteFilters={this.deleteFilters}
+                    onDeleteFilters={this.deleteRideFilters}
                     onClose={ this.hideFilters } />): (
                 <Icon
                     raised
