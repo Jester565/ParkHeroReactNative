@@ -14,13 +14,15 @@ import RidesParallax from './RidesParallax';
 import RidesHeader from './RidesHeader';
 import RideFilters from './RideFilters';
 import RideFilterHeader from './RideFilterHeader';
-import RideList from './RideList';
+import AttractionList from './AttractionList';
 import PassList from '../pass/PassList';
 import Theme from '../../Theme';
 import * as queries from '../../src/graphql/queries';
 import * as mutations from '../../src/graphql/mutations';
 import NetManager from '../../NetManager';
 import Collapsible from 'react-native-collapsible';
+import RideRow from './RideRow';
+import EventRow from './EventRow';
 
 Amplify.configure(AwsExports);
 
@@ -37,6 +39,8 @@ export default class Rides extends React.Component {
 
         //Maps ride id to object stored in the rides array
         this.rideMap = {};
+
+        this.eventMap = {};
         //Maps datetime to promises so the same request isn't made multiple times (appsync do this?)
         this.refreshWeatherPromises = {};
 
@@ -53,13 +57,17 @@ export default class Rides extends React.Component {
             rideQuery: "",
             filterName: "",
             activeRideFilters: null,
+            activeEventFilters: null,
             showFilters: false,
-            sortMode: 'Name',
-            sortAsc: true,
+            rideSortMode: 'Name',
+            rideSortAsc: true,
+            eventSortMode: 'Name',
+            eventSortAsc: true,
             //network state
             rides: [],
             events: [],
             rideFilters: [],
+            eventFilters: [],
             schedules: {},
             weathers: {},
             friendPasses: null,
@@ -72,44 +80,46 @@ export default class Rides extends React.Component {
 
     componentWillMount() {
         this.rideCachePromise = this.loadRideCache();
+        this.eventCachePromise = this.loadEventCache();
         this.scheduleCachePromise = this.loadScheduleCache();
         this.netSubToken = NetManager.subscribe(this.handleNet);
     }
 
+    getParsedItem = async (key) => {
+        try {
+            var result = await AsyncStorage.getItem(key);
+            if (result != null) {
+                return JSON.parse(result);
+            }
+        } catch (e) {
+            return null;
+        }
+    }
+
     loadRideCache = () => {
         return new Promise(async (resolve, reject) => {
-            var getParsedItem = async (key) => {
-                try {
-                    var result = await AsyncStorage.getItem(key);
-                    if (result != null) {
-                        return JSON.parse(result);
-                    }
-                } catch (e) {
-                    return null;
-                }
-            }
             var promises = [
-                getParsedItem('rideMap'), 
-                getParsedItem('sortMode'), 
-                getParsedItem('sortAsc'), 
-                getParsedItem('rideFilters'),
-                getParsedItem('activeRideFilters'),
-                getParsedItem('lastRefresh')];
+                this.getParsedItem('rideMap'), 
+                this.getParsedItem('rideSortMode'), 
+                this.getParsedItem('rideSortAsc'), 
+                this.getParsedItem('rideFilters'),
+                this.getParsedItem('activeRideFilters'),
+                this.getParsedItem('lastRefresh')];
             
             var results = await Promise.all(promises);
             var rideMap = results[0];
-            var sortMode = results[1];
-            var sortAsc = results[2];
+            var rideSortMode = results[1];
+            var rideSortAsc = results[2];
             var rideFilters = results[3];
             var activeRideFilters = results[4];
             var lastRefresh = results[5];
     
             var newState = {};
-            if (sortMode != null) {
-                newState["sortMode"] = sortMode;
+            if (rideSortMode != null) {
+                newState["rideSortMode"] = rideSortMode;
             }
-            if (sortAsc != null) {
-                newState["sortAsc"] = sortAsc;
+            if (rideSortAsc != null) {
+                newState["rideSortAsc"] = rideSortAsc;
             }
             if (rideFilters != null) {
                 newState["rideFilters"] = rideFilters;
@@ -133,7 +143,7 @@ export default class Rides extends React.Component {
                     rides.push(ride);
                 } 
                 this.rideMap = rideMap;
-                this.sort(rides, (this.state.sortMode)? sortMode: this.state.sortMode, (this.state.sortAsc)? sortAsc: this.state.sortAsc, null);
+                this.sortRides(rides, (rideSortMode)? rideSortMode: this.state.rideSortMode, (rideSortAsc)? rideSortAsc: this.state.rideSortAsc, null);
             }
             if (Object.keys(newState).length > 0) {
                 this.setState(newState, () => {
@@ -141,6 +151,63 @@ export default class Rides extends React.Component {
                 });
             } else {
                 this.rideCachePromise = null;
+            }
+            resolve(newState);
+        });
+    }
+
+    loadEventCache = () => {
+        return new Promise(async (resolve, reject) => {
+            var promises = [
+                this.getParsedItem('eventMap'), 
+                this.getParsedItem('eventSortMode'), 
+                this.getParsedItem('eventSortAsc'), 
+                this.getParsedItem('eventFilters'),
+                this.getParsedItem('activeEventFilters')];
+            
+            var results = await Promise.all(promises);
+            var eventMap = results[0];
+            var eventSortMode = results[1];
+            var eventSortAsc = results[2];
+            var eventFilters = results[3];
+            var activeEventFilters = results[4];
+
+            var newState = {};
+            if (eventSortMode != null) {
+                newState["eventSortMode"] = eventSortMode;
+            }
+            if (eventSortAsc != null) {
+                newState["eventSortAsc"] = eventSortAsc;
+            }
+            if (eventFilters != null) {
+                newState["eventFilters"] = eventFilters;
+            }
+            if (activeEventFilters != null) {
+                newState["activeEventFilters"] = activeEventFilters;
+            }
+
+            eventMap = {};
+            if (eventMap != null) {
+                console.log("EVENTMAP: ", JSON.stringify(eventMap));
+                var events = [];
+                for (var eventID in eventMap) {
+                    var event = eventMap[eventID];
+                    event.visible = this.attractionInFilter(eventID, 
+                        (activeEventFilters)? activeEventFilters: this.state.activeEventFilters, 
+                        (eventFilters)? eventFilters: this.state.eventFilters);
+                    event.selected = false;
+                    event.signedPicUrl = S3_URL + event["picUrl"] + '-1.webp';
+                    events.push(event);
+                } 
+                this.eventMap = eventMap;
+                this.sortEvents(events, (eventSortMode)? eventSortMode: this.state.eventSortMode, (eventSortAsc)? eventSortAsc: this.state.eventSortAsc, null);
+            }
+            if (Object.keys(newState).length > 0) {
+                this.setState(newState, () => {
+                    this.eventCachePromise = null;
+                });
+            } else {
+                this.eventCachePromise = null;
             }
             resolve(newState);
         });
@@ -180,9 +247,33 @@ export default class Rides extends React.Component {
         this.refreshPasses();
         this.refreshWeather(moment());
         this.refreshFilters();
+        this.refreshEvents(this.state.dateTime);
     }
 
-    getSignedUrl = (rideID, url, sizeI) => {
+    getSignedEventUrl = (eventID, url, sizeI) => {
+        var key = url + '-' + sizeI.toString() + '.webp';
+        if (this.signPromises[key] != null) {
+            return this.signedUrls[key];
+        }
+        var getPromise = Storage.get(key, { 
+            level: 'public',
+            customPrefix: {
+                public: ''
+        }});
+        this.signPromises[key] = getPromise;
+        getPromise.then((signedUrl) => {
+            console.log("GOT SIGNED URL: ", signedUrl);
+            this.signedUrls[key] = signedUrl;
+            var events = this.state.events.slice();
+            var event = this.eventMap[eventID];
+            event.signedPicUrl = signedUrl;
+            this.setState({
+                events: events
+            });
+        });
+    }
+
+    getSignedRideUrl = (rideID, url, sizeI) => {
         var key = url + '-' + sizeI.toString() + '.webp';
         if (this.signPromises[key] != null) {
             return this.signedUrls[key];
@@ -218,65 +309,76 @@ export default class Rides extends React.Component {
     }
 
     //WRAPPERS FOR SORT USED TO IMPROVE PERFORMANCE
-    updateSortMode = (sortMode) => {
-        this.sort(this.state.rides.slice(), sortMode, this.state.sortAsc, this.state.rideQuery);
+    updateRideSortMode = (sortMode) => {
+        this.sortRides(this.state.rides.slice(), sortMode, this.state.sortAsc, this.state.rideQuery);
     }
 
-    updateSortAsc = (sortAsc) => {
-        this.sort(this.state.rides.slice(), this.state.sortMode, sortAsc, this.state.rideQuery);
+    updateRideSortAsc = (sortAsc) => {
+        this.sortRides(this.state.rides.slice(), this.state.sortMode, sortAsc, this.state.rideQuery);
     }
 
     updateRideQuery = (query) => {
-        this.sort(this.state.rides.slice(), this.state.sortMode, this.state.sortAsc, query);
+        this.sortRides(this.state.rides.slice(), this.state.sortMode, this.state.sortAsc, query);
     }
 
-    sort = (rides, sortMode, sortAsc, rideQuery) => {
-        AsyncStorage.setItem("sortMode", JSON.stringify(sortMode));
-        AsyncStorage.setItem("sortAsc", JSON.stringify(sortAsc));
+    sortRides = (rides, sortMode, sortAsc, query) => {
+        AsyncStorage.setItem("rideSortMode", JSON.stringify(sortMode));
+        AsyncStorage.setItem("rideSortAsc", JSON.stringify(sortAsc));
         //Don't sort if user is querying rides
-        if (rideQuery != null && rideQuery.length > 0) {
-            rides.sort((ride1, ride2) => {
-                var dist1 = distance(rideQuery, ride1["name"], { caseSensitive: false });
-                var dist2 = distance(rideQuery, ride2["name"], { caseSensitive: false });
+        this.sort(rides, sortMode, sortAsc, query);
+        this.setState({
+            rides: rides,
+            rideSortMode: sortMode,
+            rideSortAsc: sortAsc,
+            query: null
+        });
+    }
+
+    sortEvents = (events, sortMode, sortAsc, query) => {
+        AsyncStorage.setItem("eventSortMode", JSON.stringify(sortMode));
+        AsyncStorage.setItem("eventSortAsc", JSON.stringify(sortAsc));
+        //Don't sort if user is querying rides
+        this.sort(events, sortMode, sortAsc, query);
+        this.setState({
+            events: events,
+            eventSortMode: sortMode,
+            eventSortAsc: sortAsc,
+            query: null
+        });
+    }
+
+    sort = (attractions, sortMode, sortAsc, query) => {
+        if (query != null && query.length > 0) {
+            attractions.sort((attr1, attr2) => {
+                var dist1 = distance(query, attr1["name"], { caseSensitive: false });
+                var dist2 = distance(query, attr2["name"], { caseSensitive: false });
                 return dist2 - dist1;
-            });
-            this.setState({
-                rideQuery: rideQuery,
-                rides: rides,
-                sortMode: sortMode,
-                sortAsc: sortAsc
             });
             return;
         }
         if (sortMode == 'Name') {
-            rides.sort((ride1, ride2) => {
-                return (sortAsc)? ride1["name"].localeCompare(ride2["name"]): ride2["name"].localeCompare(ride1["name"])
+            attractions.sort((attr1, attr2) => {
+                return (sortAsc)? attr1["name"].localeCompare(attr2["name"]): attr2["name"].localeCompare(attr1["name"])
             });
         } else if (sortMode == 'Rating') {
-            rides.sort((ride1, ride2) => {
-                var rating1 = (ride1["waitRating"] != null)? ride1["waitRating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
-                var rating2 = (ride2["waitRating"] != null)? ride2["waitRating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+            attractions.sort((attr1, attr2) => {
+                var rating1 = (attr1["waitRating"] != null)? attr1["waitRating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+                var rating2 = (attr2["waitRating"] != null)? attr2["waitRating"]: (sortAsc)? -1: Number.MAX_SAFE_INTEGER;
                 return (!sortAsc)? (rating1 - rating2): (rating2 - rating1);
             });
         } else if (sortMode == "Wait") {
-            rides.sort((ride1, ride2) => {
-                var wait1 = (ride1["waitTime"] != null)? ride1["waitTime"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
-                var wait2 = (ride2["waitTime"] != null)? ride2["waitTime"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+            attractions.sort((attr1, attr2) => {
+                var wait1 = (attr1["waitTime"] != null)? attr1["waitTime"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+                var wait2 = (attr2["waitTime"] != null)? attr2["waitTime"]: (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
                 return (sortAsc)? (wait1 - wait2): (wait2 - wait1);
             });
         } else if (sortMode == "FastPass") {
-            rides.sort((ride1, ride2) => {
-                var fp1 = (ride1["fastPassTime"] != null)? moment(ride1["fastPassTime"], 'h:mm A').valueOf(): (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
-                var fp2 = (ride2["fastPassTime"] != null)? moment(ride2["fastPassTime"], 'h:mm A').valueOf(): (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+            attractions.sort((attr1, attr2) => {
+                var fp1 = (attr1["fastPassTime"] != null)? moment(attr1["fastPassTime"], 'h:mm A').valueOf(): (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
+                var fp2 = (attr2["fastPassTime"] != null)? moment(attr2["fastPassTime"], 'h:mm A').valueOf(): (!sortAsc)? -1: Number.MAX_SAFE_INTEGER;
                 return (sortAsc)? (fp1 - fp2): (fp2 - fp1);
             });
         }
-        this.setState({
-            rides: rides,
-            sortMode: sortMode,
-            sortAsc: sortAsc,
-            rideQuery: null
-        });
     }
 
     setActiveRideFilters = (activeFilters) => {
@@ -373,6 +475,18 @@ export default class Rides extends React.Component {
         });
     }
 
+    deleteEventFilters = (deleteFilters) => {
+        var result = this.deleteFilters(deleteFilters, this.state.eventFilters, this.state.activeEventFilters, 'event');
+        var eventFilters = result["filters"];
+        var activeRideFilters = result["activeFilters"];
+        AsyncStorage.setItem("eventFilters", JSON.stringify(eventFilters));
+        AsyncStorage.setItem("activeEventFilters", JSON.stringify(activeEventFilters));
+        this.setState({
+            eventFilters: eventFilters,
+            activeEventFilters: activeEventFilters
+        });
+    }
+
     deleteFilters = (deleteFilters, filters, activeFilters, type) => {
         var newFilters = Object.assign({}, filters);
         var filterNames = [];
@@ -403,6 +517,18 @@ export default class Rides extends React.Component {
         });
 
         this.setSelectedRides(null);
+    }
+
+    saveEventFilter = () => {
+        var eventFilters = this.saveFilter(this.state.eventFilters, 'event');
+        AsyncStorage.setItem("eventFilters", JSON.stringify(eventFilters));
+
+        this.setState({
+            eventFilters: eventFilters,
+            filterName: ''
+        });
+
+        this.setSelectedEvents(null);
     }
 
     saveFilter = (filters, type) => {
@@ -450,20 +576,6 @@ export default class Rides extends React.Component {
             return weathers[timeStr];
         }
         return null;
-    }
-
-    //TODO
-    setSelectedEvents = (selectedEvents) => {
-        var events = this.state.events.slice();
-        for (var event of events) {
-            var eventID = event.id;
-            var selected = (selectedEvents != null && selectedEvents[eventID] != null);
-            event.selected= selected;
-        }
-        this.setState({
-            events: events,
-            selectedEvents: selectedEvents
-        })
     }
 
     setSelectedRides = (selectedRides) => {
@@ -690,6 +802,61 @@ export default class Rides extends React.Component {
         });
     }
 
+    refreshEvents = (dateTime) => {
+        var setEvents = (recvEvents, eventState) => {
+            console.log("RECV EVENTS: ", JSON.stringify(recvEvents));
+            var events = [];
+            for (var recvEvent of recvEvents) {
+                var eventID = recvEvent.id;
+                var event = this.eventMap[eventID];
+                var isNewEvent = (event == null);
+                if (isNewEvent) {
+                    event = {
+                        key: eventID,
+                        id: eventID
+                    };
+                    this.eventMap[eventID] = event;
+                    event["visible"] = this.attractionInFilter(
+                        eventID, 
+                        (eventState.activeEventFilters)? eventState.activeEventFilters: this.state.activeEventFilters,
+                        (eventState.eventFilters)? eventState.eventFilters: this.state.eventFilters);
+                    event["selected"] = false;
+                    events.push(event);
+                }
+                Object.assign(event, recvEvent.info);
+                event.dateTimes = recvEvent.dateTimes;
+
+                if (event["picUrl"] != event["officialPicUrl"]) {
+                    event.signedPicUrl = this.getSignedEventUrl(eventID, event["picUrl"], 1);
+                } else {
+                    event.signedPicUrl = S3_URL + event["picUrl"] + '-1.webp';
+                }
+            }
+
+            AsyncStorage.setItem("eventMap", JSON.stringify(this.eventMap));
+            
+            console.log("ARR EVENTS: ", JSON.stringify(events));
+            this.sortEvents(events, 
+                (eventState.eventSortMode)? eventState.eventSortMode: this.state.eventSortMode, 
+                (eventState.eventSortAsc)? eventState.eventSortAsc: this.state.eventSortAsc, 
+                this.state.query);
+        };
+        
+        if (dateTime == null) {
+            dateTime = moment();
+        }
+        var date = this.getParkDateForDateTime(dateTime);
+        API.graphql(graphqlOperation(queries.getEvents, { date: date.format("YYYY-MM-DD") })).then((data) => {
+            if (this.eventCachePromise != null) {
+                this.eventCachePromise.then((eventState) => {
+                    setEvents(data.data.getEvents, eventState);
+                });
+            } else {
+                setEvents(data.data.getEvents, {});
+            }
+        });
+    }
+
     refreshRides = () => {
         //TEMPORARY TO CUT BACK ON API CALLS
         this.setState({
@@ -717,7 +884,7 @@ export default class Rides extends React.Component {
                     Object.assign(ride, recvRide.info);
 
                     if (ride["picUrl"] != ride["officialPicUrl"]) {
-                        ride.signedPicUrl = this.getSignedUrl(rideID, ride["picUrl"], 1);
+                        ride.signedPicUrl = this.getSignedRideUrl(rideID, ride["picUrl"], 1);
                     } else {
                         ride.signedPicUrl = S3_URL + ride["picUrl"] + '-1.webp';
                     }
@@ -731,10 +898,10 @@ export default class Rides extends React.Component {
             }
             AsyncStorage.setItem("rideMap", JSON.stringify(this.rideMap));
 
-            this.sort(rides, 
-                (rideState.sortMode)? rideState.sortMode: this.state.sortMode, 
-                (rideState.sortAsc)? rideState.sortAsc: this.state.sortAsc, 
-                this.state.rideQuery);
+            this.sortRides(rides, 
+                (rideState.rideSortMode)? rideState.rideSortMode: this.state.rideSortMode, 
+                (rideState.rideSortAsc)? rideState.rideSortAsc: this.state.rideSortAsc, 
+                this.state.query);
         }
         var handleUpdate = (data, rideState) => {
             handleRideUpdate(data.data.getRides, rideState);
@@ -776,6 +943,7 @@ export default class Rides extends React.Component {
     }
 
     updateDateTime = (dateTime) => {
+        this.refreshEvents(dateTime);
         if (dateTime != null) {
             this.refreshWeather(dateTime);
         }
@@ -812,6 +980,13 @@ export default class Rides extends React.Component {
         });
     }
 
+    switchMode = () => {
+        console.log("SWITCHING MODE!");
+        this.setState({
+            mode: (this.state.mode == 'ride')? 'event': 'ride'
+        });
+    }
+
     renderListHeader = () => {
         if (this.state.selectedAttractions == null) {
             return (<RidesHeader
@@ -823,12 +998,14 @@ export default class Rides extends React.Component {
                 onReqRefresh={ this.refreshRides }
                 userPasses={this.state.friendPasses}
                 onPassPress={this.onPassPressed}
-                navigation={this.props.navigation} />);
+                navigation={this.props.navigation}
+                switchMode={this.switchMode}
+                mode={this.state.mode} />);
         } else {
             return (<RideFilterHeader 
                 filterID={this.state.filterName}
-                filters={this.state.rideFilters}
-                onSaveFilter={this.saveRideFilter}
+                filters={(this.state.mode == 'ride')? this.state.rideFilters: this.state.eventFilters}
+                onSaveFilter={(this.state.mode == 'ride')? this.saveRideFilter: this.saveEventFilter}
                 onFilterIDChanged={ this.updateFilterName }
                 onFilterEditCancelled={ this.cancelFilterName } />)
         }
@@ -852,15 +1029,35 @@ export default class Rides extends React.Component {
         });
     }
 
+    openEvent = (eventID) => {
+        var event = this.eventMap[eventID];
+        this.props.navigation.navigate('Event', {
+            event: event,
+            onEventUpdate: this.onEventUpdate,
+            isToday: (this.state.dateTime == null || this.state.dateTime.format('YYYY-MM-DD') == moment().format('YYYY-MM-DD'))
+        });
+    }
+
     onRideUpdate = (newRide) => {
         var rides = this.state.rides.slice();
         var ride = this.rideMap[newRide.id];
         //New ride added, create new json structure in array and map
         Object.assign(ride, newRide);
         if (ride.picUrl != ride.officialPicUrl) {
-            this.getSignedUrl(ride.id, ride.picUrl, 1);
+            this.getSignedRideUrl(ride.id, ride.picUrl, 1);
         }
-        this.sort(rides, this.state.sortMode, this.state.sortAsc, this.state.rideQuery);
+        this.sortRides(rides, this.state.rideSortMode, this.state.rideSortAsc, this.state.query);
+    }
+
+    onEventUpdate = (newEvent) => {
+        var events = this.state.events.slice();
+        var event = this.eventMap[newEvent.id];
+        //New ride added, create new json structure in array and map
+        Object.assign(event, newEvent);
+        if (event.picUrl != event.officialPicUrl) {
+            this.getSignedEventUrl(event.id, event.picUrl, 1);
+        }
+        this.sortEvents(events, this.state.eventSortMode, this.state.eventSortAsc, this.state.query);
     }
 
     changePassCollapsed = () => {
@@ -877,6 +1074,83 @@ export default class Rides extends React.Component {
         });
     }
 
+    renderRide = (ride, onPress, onLongPress) => {
+        var predicting = (this.state.dateTime != null);
+        return <RideRow
+            id={ride.id}
+            visible={ride.visible}
+            selected={ride.selected}
+            waitTime={(!predicting)? ride.waitTime: ride.waitTimePrediction}
+            fastPassTime={(!predicting)? ride.fastPassTime: ride.fastPassTimePrediction}
+            waitRating={(!predicting)? ride.waitRating: 5}
+            status={(!predicting)? ride.status: "--"}
+            name={ride.name}
+            signedPicUrl={ride.signedPicUrl}
+            onLongPress={onLongPress}
+            onPress={onPress} />
+    }
+
+    renderEvent = (event, onPress, onLongPress) => {
+        var isToday = (this.state.dateTime == null || this.state.dateTime.format('YYYY-MM-DD') == moment().format('YYYY-MM-DD'))
+        return <EventRow
+            id={event.id}
+            visible={event.visible}
+            selected={event.selected}
+            name={event.name}
+            signedPicUrl={event.signedPicUrl}
+            dateTimes={event.dateTimes}
+            isToday={isToday}
+            onLongPress={onLongPress}
+            onPress={onPress} />
+    }
+
+    renderFilterFooter = () => {
+        if (this.state.mode == 'ride') {
+            return (<RideFilters
+                filters={this.state.rideFilters}
+                activeFilters={this.state.activeRideFilters}
+                sortMode={this.state.rideSortMode}
+                sortAsc={this.state.rideSortAsc}
+                onSortModeChanged={ this.updateRideSortMode }
+                onSortAscChanged={ this.updateRideSortAsc }
+                onWatch={this.watchRideFilter}
+                onUnwatch={this.unwatchRideFilter}
+                onActiveFiltersChanged={this.setActiveRideFilters}
+                onEditFilters={this.editFilters}
+                onDeleteFilters={this.deleteRideFilters}
+                onClose={ this.hideFilters } />);
+        } else {
+            return (<RideFilters
+                filters={this.state.eventFilters}
+                activeFilters={this.state.activeEventFilters}
+                sortMode={this.state.eventSortMode}
+                sortAsc={this.state.eventSortAsc}
+                onSortModeChanged={ this.updateEventSortMode }
+                onSortAscChanged={ this.updateEventSortAsc }
+                onActiveFiltersChanged={this.setActiveEventFilters}
+                onEditFilters={this.editFilters}
+                onDeleteFilters={this.deleteEventFilters}
+                onClose={ this.hideFilters } />);
+        }
+    }
+
+    renderList = () => {
+        if (this.state.mode == 'ride') {
+            return (<AttractionList
+                attractions={this.state.rides}
+                selectedAttractions={this.state.selectedAttractions}
+                onSelectedAttractionsChanged={this.setSelectedRides}
+                openAttraction={this.openRide}
+                renderAttraction={this.renderRide} />);
+        } else {
+            return (<AttractionList
+                attractions={this.state.events}
+                selectedAttractions={this.state.selectedAttractions}
+                onSelectedAttractionsChanged={this.setSelectedEvents}
+                openAttraction={this.openEvent}
+                renderAttraction={this.renderEvent} />);
+        }
+    }
     render() {
         var dateTime = this.state.dateTime;
         if (dateTime == null) {
@@ -918,35 +1192,17 @@ export default class Rides extends React.Component {
                             onPress={this.onPassPressed}
                             onLongPress={this.onPassPressed} />
                     </Collapsible>
-
-                    <RideList 
-                        rides={this.state.rides}
-                        predicting={this.state.dateTime != null}
-                        filters={this.state.fitlers}
-                        activeFilters={this.state.activeFilters}
-                        selectedRides={this.state.selectedAttractions}
-                        onSelectedRidesChanged={this.setSelectedRides}
-                        openRide={this.openRide} />
+                    {this.renderList()}
+                    
                     <View style={{
                         width: "100%",
                         height: (this.state.showFilters)? 300: 0,
                         backgroundColor: Theme.PRIMARY_BACKGROUND
                     }}></View>
             </RidesParallax>
-            { (this.state.showFilters)?
-                (<RideFilters
-                    filters={this.state.rideFilters}
-                    activeFilters={this.state.activeRideFilters}
-                    sortMode={this.state.sortMode}
-                    sortAsc={this.state.sortAsc}
-                    onSortModeChanged={ this.updateSortMode }
-                    onSortAscChanged={ this.updateSortAsc }
-                    onWatch={this.watchRideFilter}
-                    onUnwatch={this.unwatchRideFilter}
-                    onActiveFiltersChanged={this.setActiveRideFilters}
-                    onEditFilters={this.editFilters}
-                    onDeleteFilters={this.deleteRideFilters}
-                    onClose={ this.hideFilters } />): (
+            { (this.state.showFilters)? (
+                    this.renderFilterFooter()
+                ): (
                 <Icon
                     raised
                     name='filter-list'

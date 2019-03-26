@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, AppState, Text, TouchableOpacity } from 'react-native';
+import { View, AppState, Text, TouchableOpacity, Image } from 'react-native';
 import { Icon, SearchBar } from 'react-native-elements';
 import Theme from '../../Theme';
 import RidesDateTimeSelector from './RidesDateTimeSelector';
@@ -24,6 +24,9 @@ export default class RidesHeader extends React.Component {
 
     componentWillUnmount() {
         AppState.removeEventListener('change', this.handleAppStateChange);
+        if (this.refreshMessageUpdater != null) {
+            clearInterval(this.refreshMessageUpdater);
+        }
     }
 
     handleAppStateChange = (nextAppState) => {
@@ -134,7 +137,7 @@ export default class RidesHeader extends React.Component {
 
     render() {
         var clearIcon = (this.state.rideQuery != null && this.state.rideQuery.length > 0)? { name: 'close', style: { width: 30, height: 30, marginLeft: 3, marginTop: -7, fontSize: 30, alignSelf: "center" } }: null;
-        var refreshTime = (!this.props.refreshing && this.state.refreshMessage && !this.state.showDateTimeBar)? this.renderRefreshTime(): null;
+        var refreshTime = (this.state.refreshMessage && !this.state.showDateTimeBar)? this.renderRefreshTime(): null;
         return (
         <View style={{ flex: 1, flexDirection: "column" }}>
             <View style={{ width: "100%", flex: 1, flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
@@ -169,17 +172,26 @@ export default class RidesHeader extends React.Component {
                     backgroundColor: Theme.PRIMARY_BACKGROUND,
                     borderBottomColor: "rgba(0, 0, 0, 0.3)",
                     borderBottomWidth: 2 }}>
-                    <Icon
-                        name={(this.state.showDateTimeBar)? 'av-timer': 'date-range'}
-                        size={40}
-                        color={Theme.PRIMARY_FOREGROUND}
-                        onPress={() => { 
-                            if (this.state.showDateTimeBar) {
+                    {
+                        (this.state.showDateTimeBar)?
+                        (<Icon
+                            name={(this.state.showDateTimeBar)? 'date-range': ''}
+                            size={40}
+                            color={Theme.PRIMARY_FOREGROUND}
+                            onPress={() => { 
                                 this.setState({ showDateTimeModal: true });
-                            } else {
-                                this.showCalendar();
-                            }
-                        }}  />
+                            }}  />): (
+                                <TouchableOpacity
+                                    onPress={this.props.switchMode}>
+                                    <Image
+                                        style={{
+                                            width: 40,
+                                            height: 40
+                                        }}
+                                        source={(this.props.mode == 'ride')? require('../../assets/firework.png'): require('../../assets/ride2.png')} />
+                                </TouchableOpacity>
+                            )
+                        }
                 </View>
                 <View style={{ 
                     width: "15%", 

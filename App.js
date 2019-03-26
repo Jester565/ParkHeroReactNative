@@ -1,5 +1,6 @@
 import Main from './views/Main';
 import Ride from './views/ride/Ride';
+import Event from './views/ride/Event';
 import Authenticator from './views/auth/Authenticator';
 import Profile from './views/profile/Profile';
 import PassPicker from './views/pass/PassPicker';
@@ -16,6 +17,7 @@ const navigator = createStackNavigator({
     Auth: {screen: Authenticator},
     Profile: {screen: Profile},
     Ride: {screen: Ride},
+    Event: {screen: Event},
     PassPicker: {screen: PassPicker},
     Friends: {screen: Friends},
     ScheduleCalendar: {screen: ScheduleCalendar}
