@@ -44,6 +44,8 @@ export default class Rides extends React.Component {
         //Maps datetime to promises so the same request isn't made multiple times (appsync do this?)
         this.refreshWeatherPromises = {};
 
+        this.refreshEventPromises = {};
+
         this.signedUrls = {};
         this.signPromises = {};
 
@@ -54,7 +56,7 @@ export default class Rides extends React.Component {
             mode: 'ride',  //Can be ride or events
             dateTime: null,
             selectedAttractions: null,
-            rideQuery: "",
+            query: "",
             filterName: "",
             activeRideFilters: null,
             activeEventFilters: null,
@@ -186,21 +188,10 @@ export default class Rides extends React.Component {
                 newState["activeEventFilters"] = activeEventFilters;
             }
 
-            eventMap = {};
             if (eventMap != null) {
-                console.log("EVENTMAP: ", JSON.stringify(eventMap));
-                var events = [];
-                for (var eventID in eventMap) {
-                    var event = eventMap[eventID];
-                    event.visible = this.attractionInFilter(eventID, 
-                        (activeEventFilters)? activeEventFilters: this.state.activeEventFilters, 
-                        (eventFilters)? eventFilters: this.state.eventFilters);
-                    event.selected = false;
-                    event.signedPicUrl = S3_URL + event["picUrl"] + '-1.webp';
-                    events.push(event);
-                } 
+                var date = this.getParkDateForDateTime((this.state.dateTime)? this.state.dateTime: moment());
                 this.eventMap = eventMap;
-                this.sortEvents(events, (eventSortMode)? eventSortMode: this.state.eventSortMode, (eventSortAsc)? eventSortAsc: this.state.eventSortAsc, null);
+                this.setEvents(date, newState);
             }
             if (Object.keys(newState).length > 0) {
                 this.setState(newState, () => {
@@ -263,13 +254,17 @@ export default class Rides extends React.Component {
         this.signPromises[key] = getPromise;
         getPromise.then((signedUrl) => {
             console.log("GOT SIGNED URL: ", signedUrl);
-            this.signedUrls[key] = signedUrl;
-            var events = this.state.events.slice();
-            var event = this.eventMap[eventID];
-            event.signedPicUrl = signedUrl;
-            this.setState({
-                events: events
-            });
+            var date = this.getParkDateForDateTime((this.state.dateTime)? this.state.dateTime: moment());
+            var dateEventMap = this.eventMap[date.format("YYYY-MM-DD")];
+            if (dateEventMap != null) {
+                this.signedUrls[key] = signedUrl;
+                var events = this.state.events.slice();
+                var event = dateEventMap[eventID];
+                event.signedPicUrl = signedUrl;
+                this.setState({
+                    events: events
+                });
+            }
         });
     }
 
@@ -310,15 +305,20 @@ export default class Rides extends React.Component {
 
     //WRAPPERS FOR SORT USED TO IMPROVE PERFORMANCE
     updateRideSortMode = (sortMode) => {
-        this.sortRides(this.state.rides.slice(), sortMode, this.state.sortAsc, this.state.rideQuery);
+        this.sortRides(this.state.rides.slice(), sortMode, this.state.rideSortAsc, this.state.query);
     }
 
     updateRideSortAsc = (sortAsc) => {
-        this.sortRides(this.state.rides.slice(), this.state.sortMode, sortAsc, this.state.rideQuery);
+        this.sortRides(this.state.rides.slice(), this.state.rideSortMode, sortAsc, this.state.query);
     }
 
-    updateRideQuery = (query) => {
-        this.sortRides(this.state.rides.slice(), this.state.sortMode, this.state.sortAsc, query);
+    updateEventSortAsc = (sortAsc) => {
+        this.sortEvents(this.state.events.slice(), this.state.eventSortMode, sortAsc, this.state.query);
+    }
+
+    updateQuery = (query) => {
+        this.sortRides(this.state.rides.slice(), this.state.rideSortMode, this.state.rideSortAsc, query);
+        this.sortEvents(this.state.events.slice(), this.state.eventSortMode, this.state.eventSortAsc, query);
     }
 
     sortRides = (rides, sortMode, sortAsc, query) => {
@@ -330,7 +330,7 @@ export default class Rides extends React.Component {
             rides: rides,
             rideSortMode: sortMode,
             rideSortAsc: sortAsc,
-            query: null
+            query: (query != null && query.length > 0)? query: null
         });
     }
 
@@ -343,7 +343,7 @@ export default class Rides extends React.Component {
             events: events,
             eventSortMode: sortMode,
             eventSortAsc: sortAsc,
-            query: null
+            query: (query != null && query.length > 0)? query: null
         });
     }
 
@@ -390,6 +390,17 @@ export default class Rides extends React.Component {
             "activeRideFilters": activeFilters
         });
     }
+
+    setActiveEventFilters = (activeFilters) => {
+        var events = this.filterAttractions(activeFilters, this.state.eventFilters, this.state.events);
+        AsyncStorage.setItem("activeEventFilters", JSON.stringify(activeFilters));
+
+        this.setState({
+            "events": events,
+            "activeEventFilters": activeFilters
+        });
+    }
+
 
     filterAttractions = (activeFilters, filters, arr) => {
         var attractions = arr.slice();
@@ -470,30 +481,34 @@ export default class Rides extends React.Component {
         AsyncStorage.setItem("rideFilters", JSON.stringify(rideFilters));
         AsyncStorage.setItem("activeRideFilters", JSON.stringify(activeRideFilters));
         this.setState({
-            rideFilters: rideFilters,
-            activeRideFilters: activeRideFilters
+            rideFilters: rideFilters
         });
+        this.setActiveRideFilters(activeRideFilters);
     }
 
     deleteEventFilters = (deleteFilters) => {
         var result = this.deleteFilters(deleteFilters, this.state.eventFilters, this.state.activeEventFilters, 'event');
         var eventFilters = result["filters"];
-        var activeRideFilters = result["activeFilters"];
+        var activeEventFilters = result["activeFilters"];
         AsyncStorage.setItem("eventFilters", JSON.stringify(eventFilters));
         AsyncStorage.setItem("activeEventFilters", JSON.stringify(activeEventFilters));
         this.setState({
-            eventFilters: eventFilters,
-            activeEventFilters: activeEventFilters
+            eventFilters: eventFilters
         });
+        this.setActiveEventFilters(activeEventFilters);
     }
 
     deleteFilters = (deleteFilters, filters, activeFilters, type) => {
         var newFilters = Object.assign({}, filters);
+        var newActiveFilters = null;
+        if (activeFilters != null) {
+            newActiveFilters = Object.assign({}, activeFilters);
+        }
         var filterNames = [];
         for (var filter of deleteFilters) {
             filterNames.push(filter.filterID);
-            if (activeFilters != null) {
-                delete activeFilters[filter.filterID];
+            if (newActiveFilters != null) {
+                delete newActiveFilters[filter.filterID];
             }
             delete newFilters[filter.filterID];
         }
@@ -503,7 +518,7 @@ export default class Rides extends React.Component {
         });
         return {
             filters: newFilters,
-            activeFilters: activeFilters
+            activeFilters: newActiveFilters
         };
     }
 
@@ -802,58 +817,89 @@ export default class Rides extends React.Component {
         });
     }
 
-    refreshEvents = (dateTime) => {
-        var setEvents = (recvEvents, eventState) => {
-            console.log("RECV EVENTS: ", JSON.stringify(recvEvents));
+    setEvents = (date, eventState) => {
+        console.log("SET EVENTS");
+        var dateEventMap = this.eventMap[date.format("YYYY-MM-DD")];
+        if (dateEventMap != null) {
             var events = [];
-            for (var recvEvent of recvEvents) {
-                var eventID = recvEvent.id;
-                var event = this.eventMap[eventID];
-                var isNewEvent = (event == null);
-                if (isNewEvent) {
-                    event = {
-                        key: eventID,
-                        id: eventID
-                    };
-                    this.eventMap[eventID] = event;
-                    event["visible"] = this.attractionInFilter(
-                        eventID, 
-                        (eventState.activeEventFilters)? eventState.activeEventFilters: this.state.activeEventFilters,
-                        (eventState.eventFilters)? eventState.eventFilters: this.state.eventFilters);
-                    event["selected"] = false;
-                    events.push(event);
-                }
-                Object.assign(event, recvEvent.info);
-                event.dateTimes = recvEvent.dateTimes;
+            for (var eventID in dateEventMap) {
+                var event = dateEventMap[eventID];
+                event.visible = this.attractionInFilter(eventID, 
+                    (eventState.activeEventFilters)? eventState.activeEventFilters: this.state.activeEventFilters, 
+                    (eventState.eventFilters)? eventState.eventFilters: this.state.eventFilters);
+                event.selected = false;
+                event.signedPicUrl = S3_URL + event["picUrl"] + '-1.webp';
+                events.push(event);
+            } 
+            this.sortEvents(events, (eventState.eventSortMode)? eventState.eventSortMode: this.state.eventSortMode, (eventState.eventSortAsc)? eventState.eventSortAsc: this.state.eventSortAsc, this.state.query);
+        }
+    }
 
-                if (event["picUrl"] != event["officialPicUrl"]) {
-                    event.signedPicUrl = this.getSignedEventUrl(eventID, event["picUrl"], 1);
-                } else {
-                    event.signedPicUrl = S3_URL + event["picUrl"] + '-1.webp';
-                }
-            }
-
-            AsyncStorage.setItem("eventMap", JSON.stringify(this.eventMap));
-            
-            console.log("ARR EVENTS: ", JSON.stringify(events));
-            this.sortEvents(events, 
-                (eventState.eventSortMode)? eventState.eventSortMode: this.state.eventSortMode, 
-                (eventState.eventSortAsc)? eventState.eventSortAsc: this.state.eventSortAsc, 
-                this.state.query);
-        };
-        
+    refreshEvents = (dateTime) => {
         if (dateTime == null) {
             dateTime = moment();
         }
         var date = this.getParkDateForDateTime(dateTime);
-        API.graphql(graphqlOperation(queries.getEvents, { date: date.format("YYYY-MM-DD") })).then((data) => {
-            if (this.eventCachePromise != null) {
-                this.eventCachePromise.then((eventState) => {
-                    setEvents(data.data.getEvents, eventState);
-                });
-            } else {
-                setEvents(data.data.getEvents, {});
+        if (this.refreshEventPromises[date.format("YYYY-MM-DD")] != null) {
+            if (this.eventDateStr != date.format("YYYY-MM-DD")) {
+                this.eventDateStr = date.format("YYYY-MM-DD");
+                this.setEvents(date, {});
             }
+            return;
+        }
+        var refreshPromise = new Promise((resolve, reject) => {
+            var updateEventMap = (recvEvents) => {
+                var dateEventMap = this.eventMap[date.format("YYYY-MM-DD")];
+                if (dateEventMap == null) {
+                    dateEventMap = {}
+                    this.eventMap[date.format("YYYY-MM-DD")] = dateEventMap;
+                }
+                for (var recvEvent of recvEvents) { 
+                    var eventID = recvEvent.id;
+                    var event = dateEventMap[eventID];
+                    var isNewEvent = (event == null);
+                    if (isNewEvent) {
+                        event = {
+                            key: eventID,
+                            id: eventID
+                        };
+                        dateEventMap[eventID] = event;
+                    }
+                    Object.assign(event, recvEvent.info);
+                    event.dateTimes = recvEvent.dateTimes;
+    
+                    if (event["picUrl"] != event["officialPicUrl"]) {
+                        event.signedPicUrl = this.getSignedEventUrl(eventID, event["picUrl"], 1);
+                    } else {
+                        event.signedPicUrl = S3_URL + event["picUrl"] + '-1.webp';
+                    }
+                }
+    
+                AsyncStorage.setItem("eventMap", JSON.stringify(this.eventMap));
+            };
+            
+            if (dateTime == null) {
+                dateTime = moment();
+            }
+            API.graphql(graphqlOperation(queries.getEvents, { date: date.format("YYYY-MM-DD") })).then((data) => {
+                if (this.eventCachePromise != null) {
+                    this.eventCachePromise.then((eventState) => {
+                        updateEventMap(data.data.getEvents, eventState);
+                        this.eventDateStr = date.format("YYYY-MM-DD");
+                        this.setEvents(date, eventState);
+                    });
+                } else {
+                    updateEventMap(data.data.getEvents, {});
+                    this.eventDateStr = date.format("YYYY-MM-DD");
+                    this.setEvents(date, {});
+                }
+            }).catch((ex) => {
+                reject(ex);
+            });
+        });
+        this.refreshEventPromises[date.format("YYYY-MM-DD")] = refreshPromise;
+        refreshPromise.catch((ex) => {
+            refreshPromise[date.format("YYYY-MM-DD")] = null;
         });
     }
 
@@ -993,14 +1039,16 @@ export default class Rides extends React.Component {
                 refreshing={this.state.refreshing}
                 lastRefresh={this.state.lastRefresh}
                 schedules={this.state.schedules}
-                onRideQueryChanged={ this.updateRideQuery }
+                onQueryChanged={ this.updateQuery }
                 onDateTimeChanged={ this.updateDateTime }
                 onReqRefresh={ this.refreshRides }
                 userPasses={this.state.friendPasses}
                 onPassPress={this.onPassPressed}
                 navigation={this.props.navigation}
                 switchMode={this.switchMode}
-                mode={this.state.mode} />);
+                mode={this.state.mode}
+                query={this.state.query}
+                hint={(this.state.mode == 'ride')? 'Rides': 'Events'} />);
         } else {
             return (<RideFilterHeader 
                 filterID={this.state.filterName}
@@ -1030,11 +1078,12 @@ export default class Rides extends React.Component {
     }
 
     openEvent = (eventID) => {
-        var event = this.eventMap[eventID];
+        var date = this.getParkDateForDateTime((this.state.dateTime)? this.state.dateTime: moment());
+        var event = this.eventMap[date.format("YYYY-MM-DD")][eventID];
         this.props.navigation.navigate('Event', {
             event: event,
             onEventUpdate: this.onEventUpdate,
-            isToday: (this.state.dateTime == null || this.state.dateTime.format('YYYY-MM-DD') == moment().format('YYYY-MM-DD'))
+            isToday: (this.state.dateTime == null || this.getParkDateForDateTime(this.state.dateTime).format('YYYY-MM-DD') == this.getParkDateForDateTime(moment()).format('YYYY-MM-DD'))
         });
     }
 
@@ -1050,8 +1099,9 @@ export default class Rides extends React.Component {
     }
 
     onEventUpdate = (newEvent) => {
+        var date = this.getParkDateForDateTime((this.state.dateTime)? this.state.dateTime: moment());
+        var event = this.eventMap[date.format("YYYY-MM-DD")][newEvent.id];
         var events = this.state.events.slice();
-        var event = this.eventMap[newEvent.id];
         //New ride added, create new json structure in array and map
         Object.assign(event, newEvent);
         if (event.picUrl != event.officialPicUrl) {
@@ -1091,7 +1141,7 @@ export default class Rides extends React.Component {
     }
 
     renderEvent = (event, onPress, onLongPress) => {
-        var isToday = (this.state.dateTime == null || this.state.dateTime.format('YYYY-MM-DD') == moment().format('YYYY-MM-DD'))
+        var isToday = (this.state.dateTime == null || this.getParkDateForDateTime(this.state.dateTime).format('YYYY-MM-DD') == this.getParkDateForDateTime(moment()).format('YYYY-MM-DD'));
         return <EventRow
             id={event.id}
             visible={event.visible}
@@ -1125,7 +1175,6 @@ export default class Rides extends React.Component {
                 activeFilters={this.state.activeEventFilters}
                 sortMode={this.state.eventSortMode}
                 sortAsc={this.state.eventSortAsc}
-                onSortModeChanged={ this.updateEventSortMode }
                 onSortAscChanged={ this.updateEventSortAsc }
                 onActiveFiltersChanged={this.setActiveEventFilters}
                 onEditFilters={this.editFilters}

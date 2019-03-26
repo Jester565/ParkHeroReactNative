@@ -99,14 +99,16 @@ export default class RideFilters extends React.Component {
                             size={25}
                             containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "#333333", padding: 10, borderWidth: 2, marginTop: -8, marginRight: 20 }} 
                             onPress={() => { this.props.onEditFilters([ filter ]) }} />
-                        <Icon
-                            name={ 'visibility' }
-                            color={Theme.PRIMARY_FOREGROUND}
-                            size={25}
-                            containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "#333333", padding: 10, marginTop: -8, borderWidth: 2 }}
-                            onPress={() => { 
-                                this.onEditWatch(filter);
-                            }} />
+                        {
+                            (this.props.onWatch != null)? (<Icon
+                                name={ 'visibility' }
+                                color={Theme.PRIMARY_FOREGROUND}
+                                size={25}
+                                containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "#333333", padding: 10, marginTop: -8, borderWidth: 2 }}
+                                onPress={() => { 
+                                    this.onEditWatch(filter);
+                                }} />): null
+                        }
                     </View>
                 </View>
             </View>
@@ -134,16 +136,19 @@ export default class RideFilters extends React.Component {
                     flexDirection: 'row', 
                     justifyContent: 'space-evenly', 
                     alignContent: 'center' }}>
-                    <Picker
-                        style={{ color: Theme.PRIMARY_FOREGROUND, width: 160, height: 40 }}
-                        selectedValue={this.props.sortMode}
-                        onValueChange={(itemValue) => { this.props.onSortModeChanged(itemValue) }}>
-                        <Picker.Item label="Name" value="Name" />
-                        <Picker.Item label="Rating" value="Rating" />
-                        <Picker.Item label="Wait Time" value="Wait" />
-                        <Picker.Item label="FastPass" value="FastPass" />
-                        <Picker.Item label="Distance" value="Distance" />
-                    </Picker>
+                    {
+                        (this.props.onSortModeChanged != null)? 
+                        (<Picker
+                            style={{ color: Theme.PRIMARY_FOREGROUND, width: 160, height: 40 }}
+                            selectedValue={this.props.sortMode}
+                            onValueChange={(itemValue) => { this.props.onSortModeChanged(itemValue) }}>
+                            <Picker.Item label="Name" value="Name" />
+                            <Picker.Item label="Rating" value="Rating" />
+                            <Picker.Item label="Wait Time" value="Wait" />
+                            <Picker.Item label="FastPass" value="FastPass" />
+                            <Picker.Item label="Distance" value="Distance" />
+                        </Picker>): null
+                    }
                     <Switch
                         style={{ width: 50, height: 40, color: Theme.PRIMARY_FOREGROUND }}
                         thumbColor={Theme.PRIMARY_FOREGROUND}
