@@ -50,8 +50,12 @@ export const getWeather = `query GetWeather($date: String) {
 export const getRideDPs = `query GetRideDPs($date: String!, $rideID: String) {
   getRideDPs(date: $date, rideID: $rideID) {
     rideID
+    rideName
+    ridePicUrl
+    rideOfficialPicUrl
     rideOpenDateTime
     rideCloseDateTime
+    rideLabels
     dps {
       prediction {
         waitMins
@@ -193,6 +197,61 @@ export const getEvents = `query GetEvents($date: String) {
       customPicUrls
     }
     dateTimes
+  }
+}
+`;
+export const getFastPasses = `query GetFastPasses {
+  getFastPasses {
+    transactions {
+      attractionID
+      attractionName
+      attractionPicUrl
+      attractionOfficialPicUrl
+      startDateTime
+      endDateTime
+      passes {
+        id
+        startDateTime
+        endDateTime
+      }
+    }
+    plannedTransactions {
+      id
+      attractionID
+      attractionName
+      attractionPicUrl
+      attractionOfficialPicUrl
+      selectionDateTime
+      fastPassTime
+      passes {
+        id
+        priority
+        nextSelectionDateTime
+      }
+    }
+    allUserPasses {
+      user {
+        id
+        name
+        profilePicUrl
+      }
+      allPasses {
+        pass {
+          id
+          name
+          type
+          expirationDT
+          isPrimary
+          isEnabled
+          hasMaxPass
+        }
+        fastPassInfo {
+          selectionDateTime
+          earliestSelectionDateTime
+          priority
+        }
+      }
+    }
   }
 }
 `;

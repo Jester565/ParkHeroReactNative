@@ -11,7 +11,6 @@ export default class RidesHeader extends React.Component {
         this.REFRESH_MESSAGE_INTERVAL = 30000;
 
         this.state = {
-            rideQuery: '',
             showDateTimeModal: false,
             showDateTimeBar: false,
             refreshMessage: (props.lastRefresh != null)? this.getRefreshMessage(props.lastRefresh): null
@@ -101,11 +100,8 @@ export default class RidesHeader extends React.Component {
         });
     }
 
-    onRideQueryChanged = (rideQuery) => {
-        this.setState({
-            rideQuery: rideQuery
-        });
-        this.props.onRideQueryChanged(rideQuery);
+    onQueryChanged = (query) => {
+        this.props.onQueryChanged(query);
     }
 
     renderRefreshTime = () => {
@@ -136,16 +132,16 @@ export default class RidesHeader extends React.Component {
     };
 
     render() {
-        var clearIcon = (this.state.rideQuery != null && this.state.rideQuery.length > 0)? { name: 'close', style: { width: 30, height: 30, marginLeft: 3, marginTop: -7, fontSize: 30, alignSelf: "center" } }: null;
+        var clearIcon = (this.props.query != null && this.props.query.length > 0)? { name: 'close', style: { width: 30, height: 30, marginLeft: 3, marginTop: -7, fontSize: 30, alignSelf: "center" } }: null;
         var refreshTime = (this.state.refreshMessage && !this.state.showDateTimeBar)? this.renderRefreshTime(): null;
         return (
         <View style={{ flex: 1, flexDirection: "column" }}>
             <View style={{ width: "100%", flex: 1, flexDirection: 'row', justifyContent: 'flex-start', alignContent: 'center' }}>
                 <SearchBar 
-                    placeholder="Rides"
+                    placeholder={this.props.hint}
                     icon={{ name: 'search', style: { fontSize: 25, height: 25, marginTop: -4  } }}
                     clearIcon={clearIcon}
-                    value={this.state.rideQuery}
+                    value={this.props.query}
                     containerStyle={{
                         width: "70%",
                         height: 58,
@@ -161,8 +157,8 @@ export default class RidesHeader extends React.Component {
                         fontSize: 22,
                         color: Theme.PRIMARY_FOREGROUND
                     }}
-                    onChangeText={(value) => { this.onRideQueryChanged(value) }}
-                    onClearText={() => { this.onRideQueryChanged("") }} />
+                    onChangeText={(value) => { this.onQueryChanged(value) }}
+                    onClearText={() => { this.onQueryChanged("") }} />
                 <View style={{ 
                     width: "15%", 
                     height: 58, 

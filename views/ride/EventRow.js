@@ -38,7 +38,7 @@ export default class EventRow extends React.PureComponent {
 
         
         var now = moment();
-        var availableThreshold = now.add(30, 'minutes');
+        var availableThreshold = now.clone().subtract(20, 'minutes');
         for (var dateTimeStr of this.props.dateTimes) {
             var dateTime = moment(dateTimeStr, "YYYY-MM-DD HH:mm:ss");
             if (dateTime < availableThreshold && this.props.isToday) {

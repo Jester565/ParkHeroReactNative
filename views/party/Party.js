@@ -16,6 +16,7 @@ import Commons from '../../Commons';
 import { ViewPager } from 'rn-viewpager';
 import { PagerDotIndicator, IndicatorViewPager } from 'rn-viewpager';
 import NetManager from '../../NetManager';
+import FastPasses from '../pass/FastPasses';
 
 Amplify.configure(AwsExports);
 
@@ -515,7 +516,9 @@ export default class Party extends React.Component {
                     flexDirection: 'column',
                     alignContent: 'center',
                     marginTop: 20
-                }}></View>
+                }}>
+                    <FastPasses />
+                </View>
             </PassParallax>);
     }
 }

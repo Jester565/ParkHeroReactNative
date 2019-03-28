@@ -162,3 +162,58 @@ export const deleteInvite = `mutation DeleteInvite($type: Int, $isOwner: Boolean
   deleteInvite(type: $type, isOwner: $isOwner, userID: $userID)
 }
 `;
+export const updatePlannedFpTransactions = `mutation UpdatePlannedFpTransactions($plannedTransactions: [PlannedFpPassIn]) {
+  updatePlannedFpTransactions(plannedTransactions: $plannedTransactions) {
+    transactions {
+      attractionID
+      attractionName
+      attractionPicUrl
+      attractionOfficialPicUrl
+      startDateTime
+      endDateTime
+      passes {
+        id
+        startDateTime
+        endDateTime
+      }
+    }
+    plannedTransactions {
+      id
+      attractionID
+      attractionName
+      attractionPicUrl
+      attractionOfficialPicUrl
+      selectionDateTime
+      fastPassTime
+      passes {
+        id
+        priority
+        nextSelectionDateTime
+      }
+    }
+    allUserPasses {
+      user {
+        id
+        name
+        profilePicUrl
+      }
+      allPasses {
+        pass {
+          id
+          name
+          type
+          expirationDT
+          isPrimary
+          isEnabled
+          hasMaxPass
+        }
+        fastPassInfo {
+          selectionDateTime
+          earliestSelectionDateTime
+          priority
+        }
+      }
+    }
+  }
+}
+`;

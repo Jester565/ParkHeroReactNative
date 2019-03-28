@@ -56,37 +56,35 @@ class PassRow extends React.PureComponent {
                     </View>
                     <View style={{ width: "100%", flex: 1, flexDirection: 'column', alignContent: 'center' }}>
                         {
-                            (this.props.passes.length > 1)? (
-                                this.props.passes.map((pass) => {
-                                    return (
-                                    <View style={{ 
-                                        width: "100%", 
-                                        flexDirection: 'row', 
-                                        alignContent: 'center',
-                                        backgroundColor: (pass.isBlocked)? 'black': 'white'
-                                    }}>
-                                        <Text style={{
-                                            width: "50%",
-                                            textAlign: 'center', 
-                                            justifyContent: 'center',
-                                            fontSize: fontSize,
-                                            color: (pass.isBlocked)? '#FF0000': 'black' }}>
-                                            { pass.name }
-                                        </Text>
-                                        {
-                                            (pass.type != null)? (
-                                                <Text style={{
-                                                    width: "50%",
-                                                    textAlign: 'center', 
-                                                    fontSize: fontSize,
-                                                    color: (pass.isBlocked)? '#FF0000': 'black' }}>
-                                                    { pass.type }
-                                                </Text>
-                                            ): null
-                                        }
-                                    </View>);
-                                })
-                            ): null
+                            this.props.passes.map((pass) => {
+                                return (
+                                <View style={{ 
+                                    width: "100%", 
+                                    flexDirection: 'row', 
+                                    alignContent: 'center',
+                                    backgroundColor: (pass.isBlocked)? 'black': 'white'
+                                }}>
+                                    <Text style={{
+                                        width: "50%",
+                                        textAlign: 'center', 
+                                        justifyContent: 'center',
+                                        fontSize: fontSize,
+                                        color: (pass.isBlocked)? '#FF0000': 'black' }}>
+                                        { pass.name }
+                                    </Text>
+                                    {
+                                        (pass.type != null)? (
+                                            <Text style={{
+                                                width: "50%",
+                                                textAlign: 'center', 
+                                                fontSize: fontSize,
+                                                color: (pass.isBlocked)? '#FF0000': 'black' }}>
+                                                { pass.type }
+                                            </Text>
+                                        ): null
+                                    }
+                                </View>);
+                            })
                         }
                     </View>
                 </View>
