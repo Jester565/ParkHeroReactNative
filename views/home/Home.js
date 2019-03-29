@@ -12,8 +12,8 @@ export default class Home extends React.Component {
         console.log("USER: ", JSON.stringify(props.user));
     }
 
-    onOpenCamera = () => {
-
+    onOpenMap = () => {
+        this.props.navigation.navigate('ResortMap');
     }
 
     onOpenFriends = () => {
@@ -46,7 +46,7 @@ export default class Home extends React.Component {
         <View>
             <View style={{ width: headerWidth, height: profileImgWidth }}>
                 <TouchableOpacity
-                onPress={this.onOpenCamera}
+                onPress={this.onOpenMap}
                 style={{ 
                     left: 0,
                     top: 0,
@@ -68,7 +68,7 @@ export default class Home extends React.Component {
                             color: Theme.PRIMARY_FOREGROUND
                         }}
                         size={headerButtonSize}
-                        name="camera" />
+                        name="map" />
                 </TouchableOpacity>
                 <TouchableOpacity
                 onPress={this.onOpenFriends}

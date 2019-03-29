@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, TouchableOpacity, Dimensions } from 'react-native';
-import { Text } from 'react-native-elements';
+import { Text, Icon } from 'react-native-elements';
 import { CachedImage } from 'react-native-cached-image';
 import moment from 'moment';
 import Theme from '../../Theme';
@@ -21,6 +21,10 @@ export default class TransactionRow extends React.PureComponent {
         if (this.props.onLongPress) {
             this.props.onLongPress(this.props.id);
         }
+    }
+
+    onRemoveTransaction = () => {
+        this.props.onRemoveTransaction(this.props.id);
     }
 
     render() {
@@ -155,13 +159,13 @@ export default class TransactionRow extends React.PureComponent {
                                 </Text>
                             </View>
                             <Text style={{
-                                    numberOfLines: 1,
                                     fontSize: fontSize,
                                     backgroundColor: 'black',
                                     color: 'white',
                                     width: "100%",
                                     textAlign: 'center'
-                                }}>
+                                }}
+                                numberOfLines={1}>
                                     {this.props.name}
                             </Text>
                             <View style={{ width: "100%", flex: 1, flexDirection: 'column', justifyContent: 'space-evenly', alignContent: 'center' }}>
@@ -199,6 +203,13 @@ export default class TransactionRow extends React.PureComponent {
                                         })
                                     }
                                 </View>
+                                {
+                                    (this.props.planned)? (<Icon
+                                        name={"remove"}
+                                        size={13}
+                                        color='red'
+                                        onPress={this.onRemoveTransaction} />): null
+                                }
                             </View>
                         </View>
                     </View>

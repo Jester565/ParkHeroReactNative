@@ -248,6 +248,7 @@ export const getFastPasses = `query GetFastPasses {
         fastPassInfo {
           selectionDateTime
           earliestSelectionDateTime
+          earliestSelectionDateTimes
           priority
         }
       }

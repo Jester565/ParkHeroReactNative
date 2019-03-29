@@ -1,6 +1,6 @@
 import React from 'react';
-import { Picker, StyleSheet, Image, TextInput, View, FlatList, TouchableOpacity, AppState, Dimensions } from 'react-native';
-import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Icon, Text, Avatar, Card, SearchBar, Slider } from 'react-native-elements';
+import { Picker, StyleSheet, Image, TextInput, View, FlatList, TouchableOpacity, AppState, Dimensions, BackHandler } from 'react-native';
+import { FormLabel, FormInput, FormValidationMessage, Button, ThemeProvider, Icon, Text, Avatar, Card, SearchBar, Slider, Divider } from 'react-native-elements';
 import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
 import Collapsible from 'react-native-collapsible';
 import AwsExports from '../../AwsExports';
@@ -16,6 +16,8 @@ import Amplify, { API, graphqlOperation, Storage } from 'aws-amplify';
 import NetManager from '../../NetManager';
 import PassGroupRow from './PassGroupRow';
 import TransactionRow from './TransactionRow';
+import PassCreatorRow from './PassCreatorRow';
+import Toast from 'react-native-root-toast';
 
 Amplify.configure(AwsExports);
 
@@ -34,11 +36,13 @@ export default class FastPasses extends React.Component {
             allTransactions: [],
             passGroups: [],
             showCreator: false,
-            passes: []
+            passes: [],
+            submitting: false
         };
     }
 
     componentWillMount() {
+        BackHandler.addEventListener('hardwareBackPress', this.handleBackPress);
         this.netSubToken = NetManager.subscribe(this.onNetChange);
     }
 
@@ -51,6 +55,14 @@ export default class FastPasses extends React.Component {
             //this.parseFastPasses(null);
             this.refreshFastPasses();
         }
+    }
+
+    handleBackPress = () => {
+        if (this.state.showCreator) {
+            this.hideFastPassCreator();
+            return true;
+        }
+        return false;
     }
 
     getSignedUrl = (attractionID, url, sizeI) => {
@@ -159,7 +171,9 @@ export default class FastPasses extends React.Component {
                             }
                             fastPassInfo: {
                                 selectionDateTime,
-                                earliestSelectionDateTime
+                                earliestSelectionDateTime,
+                                priority,
+                                earliestSelectionDateTimes
                             ]
                         }
                     ]
@@ -260,11 +274,18 @@ export default class FastPasses extends React.Component {
             for (var allPass of userPasses.allPasses) {
                 allPass.pass.user = userPasses.user;
                 allPassMap[allPass.pass.id] = allPass;
+                var earliestSelectionDateTimes = [];
+                for (var selectionDateTimeStr of allPass.fastPassInfo.earliestSelectionDateTimes) {
+                    earliestSelectionDateTimes.push((selectionDateTimeStr != null)? moment(selectionDateTimeStr, "YYYY-MM-DD HH:mm:ss"): null);
+                }
                 passes.push({
                     key: allPass.pass.id,
                     id: allPass.pass.id,
                     name: (allPass.pass.name != null)? allPass.pass.name: allPass.pass.id.substr(allPass.pass.id.length - 5),
-                    priority: allPass.fastPassInfo.priority
+                    priority: (allPass.fastPassInfo.priority != null)? allPass.fastPassInfo.priority + 1: 0,
+                    earliestSelectionDateTimes: earliestSelectionDateTimes,
+                    currentPriority: (allPass.fastPassInfo.priority != null)? allPass.fastPassInfo.priority + 1: 0,
+                    enabled: true
                 });
             }
         }
@@ -377,6 +398,8 @@ export default class FastPasses extends React.Component {
             passes: passes,
             height: y + this.TRANSACTION_HEIGHT / 2
         });
+
+        this.plannedTransactions = fastPassData.plannedTransactions;
     }
 
     refreshFastPasses = () => {
@@ -430,6 +453,7 @@ export default class FastPasses extends React.Component {
         }
         return (<TransactionRow
             y={transaction.y}
+            id={transaction.id}
             planned={transaction.planned}
             name={transaction.attractionName}
             height={this.TRANSACTION_HEIGHT}
@@ -438,7 +462,137 @@ export default class FastPasses extends React.Component {
             fastPassTimeStr={transaction.fastPassTime}
             orderDateTimeStr={transaction.selectionDateTime}
             signedPicUrl={transaction.signedPicUrl}
-            passGroups={passGroups} />);
+            passGroups={passGroups}
+            onRemoveTransaction={this.removeTransaction} />);
+    }
+
+    onRideSelected = (ride) => {
+        console.log("RIDE SELECTED: ", JSON.stringify(ride));
+        this.addTransaction(ride.id);
+    }
+
+    onOpenRideSelector = () => {
+        var latestSelectionDateTime = null;
+        for (var pass of this.state.passes) {
+            if (pass.enabled) {
+                var selectionDateTime = pass.earliestSelectionDateTimes[pass.currentPriority];
+                if (selectionDateTime == null || selectionDateTime < moment()) {
+                    selectionDateTime = moment();
+                }
+                if (latestSelectionDateTime == null || selectionDateTime > latestSelectionDateTime) {
+                    latestSelectionDateTime = selectionDateTime;
+                }
+            }
+        }
+        this.props.navigation.navigate('RideSelector', {
+            labels: ["FASTPASS"],
+            dateTimeStr: latestSelectionDateTime.format("YYYY-MM-DD HH:mm:ss"),
+            onRideSelected: this.onRideSelected,
+            showCreator: false
+        });
+    }
+
+    addTransaction = (rideID) => {
+        this.setState({
+            submitting: true
+        });
+        var passToPriorities = {};
+        var newFpPasses = [];
+        for (var pass of this.state.passes) {
+            if (pass.enabled) {
+                newFpPasses.push({
+                    id: pass.id,
+                    priority: pass.currentPriority
+                });
+                passToPriorities[pass.id] = pass.currentPriority;
+            }
+        }
+        console.log("PASSES TO PRIORITIES: ", JSON.stringify(passToPriorities));
+        var payload = [];
+        for (var plannedTransaction of this.plannedTransactions) {
+            var passes = [];
+            for (var pass of plannedTransaction.passes) {
+                var newPriority = (passToPriorities[pass.id] != null && passToPriorities[pass.id] <= pass.priority)? pass.priority + 1: pass.priority;
+                passes.push({
+                    id: pass.id,
+                    priority: newPriority
+                });
+            }
+            payload.push({
+                rideID: plannedTransaction.attractionID,
+                passes: passes
+            });
+        }
+        
+        payload.push({
+            rideID: rideID,
+            passes: newFpPasses
+        });
+        API.graphql(graphqlOperation(mutations.updatePlannedFpTransactions, { plannedTransactions: payload })).then((data) => {
+            var fastPassData = data.data.updatePlannedFpTransactions;
+            console.log("MUTATION FAST PASS DATA: ", JSON.stringify(fastPassData));
+            this.parseFastPasses(fastPassData);
+            Toast.show('PLANNED FP ADDED');
+            this.setState({
+                submitting: false
+            });
+        }).catch((e) => {
+            Toast.show('FP ERR: ' + JSON.stringify(e), {
+                duration: 120000
+            });
+            this.setState({
+                submitting: false
+            });
+        });
+    }
+
+    removeTransaction = (transactionID) => {
+        this.setState({
+            submitting: true
+        });
+        var passToPriorities = {};
+        var payload = [];
+        for (var plannedTransaction of this.plannedTransactions) {
+            if (plannedTransaction.id == transactionID) {
+                for (var pass of plannedTransaction.passes) {
+                    passToPriorities[pass.id] = pass.currentPriority;
+                }
+                break;
+            }
+        }
+        for (var plannedTransaction of this.plannedTransactions) {
+            if (plannedTransaction.id != transactionID) {
+                var passes = [];
+                for (var pass of plannedTransaction.passes) {
+                    var newPriority = (passToPriorities[pass.id] != null && passToPriorities[pass.id] < pass.priority)? pass.priority - 1: pass.priority;
+                    passes.push({
+                        id: pass.id,
+                        priority: newPriority
+                    });
+                }
+                payload.push({
+                    rideID: plannedTransaction.attractionID,
+                    passes: passes
+                });
+            }
+        }
+        
+        API.graphql(graphqlOperation(mutations.updatePlannedFpTransactions, { plannedTransactions: payload })).then((data) => {
+            var fastPassData = data.data.updatePlannedFpTransactions;
+            console.log("REMOVE FAST PASS DATA: ", JSON.stringify(fastPassData));
+            this.parseFastPasses(fastPassData);
+            Toast.show('PLANNED FP REMOVED');
+            this.setState({
+                submitting: false
+            });
+        }).catch((e) => {
+            Toast.show('FP REMOVE ERR: ' + JSON.stringify(e), {
+                duration: 120000
+            });
+            this.setState({
+                submitting: false
+            });
+        });
     }
 
     showFastPassCreator = () => {
@@ -447,16 +601,80 @@ export default class FastPasses extends React.Component {
         });
     }
 
-    addFastPass = () => {
-        var passPriorities = [
-             
-        ];
+    hideFastPassCreator = () => {
+        this.setState({
+            showCreator: false
+        });
     }
 
+    onPriorityChanged = (passID, priority) => {
+        var passes = this.state.passes.slice();
+        passes.forEach((arrPass, i) => {
+            if (arrPass.id == passID) {
+                var newPass = Object.assign({}, arrPass);
+                newPass.currentPriority = priority;
+                passes[i] = newPass;
+            }
+        });
+        this.setState({
+            passes: passes
+        });
+    }
+    
+    onEnableChanged = (passID) => {
+        var passes = this.state.passes.slice();
+        passes.forEach((arrPass, i) => {
+            if (arrPass.id == passID) {
+                var newPass = Object.assign({}, arrPass);
+                newPass.enabled = !newPass.enabled;
+                console.log("ENABLED SET: ", newPass.enabled);
+                passes[i] = newPass;
+            }
+        });
+        this.setState({
+            passes: passes
+        });
+    }
 
+    renderCreatorPass = ({item}) => {
+        var pass = item;
+        var selectionDateTime = pass.earliestSelectionDateTimes[pass.currentPriority];
+        if (selectionDateTime == null || selectionDateTime < moment()) {
+            selectionDateTime = moment();
+        }
+        var selectionDateTimeStr = selectionDateTime.format("h:mm A");
+        return (<PassCreatorRow
+            id={pass.id}
+            name={pass.name}
+            enabled={pass.enabled}
+            selectionDateTimeStr={selectionDateTimeStr}
+            maxPriority={pass.priority}
+            currentPriority={pass.currentPriority}
+            onPriorityChanged={this.onPriorityChanged}
+            onCheckPressed={this.onEnableChanged} />);
+    }
 
     renderCreator = () => {
-        
+        return (<View>
+            <FlatList
+                data={this.state.passes}
+                renderItem={this.renderCreatorPass} />
+            <Button
+                loading={this.state.submitting} 
+                disabled={this.state.submitting}
+                rounded={true} 
+                backgroundColor={'lime'} 
+                title='SELECT RIDE'
+                onPress={this.onOpenRideSelector}
+                containerViewStyle={{ margin: 10 }}
+                disabledStyle={{
+                    backgroundColor: Theme.DISABLED_BACKGROUND
+                }}
+                disabledTextStyle={{
+                    color: Theme.DISABLED_FOREGROUND
+                }} />
+            <Divider style={{ backgroundColor: 'green', marginBottom: 20 }} />
+        </View>);
     }
 
     render() {
@@ -488,6 +706,12 @@ export default class FastPasses extends React.Component {
                     justifyContent: 'space-between',
                     alignContent: 'center'
                 }}>
+                    <Icon
+                    raised
+                    name={"refresh"}
+                    size={22}
+                    color='blue'
+                    onPress={this.refreshFastPasses} />
                     <Text style={{
                         fontSize: 30,
                         color: 'white',
@@ -497,13 +721,15 @@ export default class FastPasses extends React.Component {
                     </Text>
                     <Icon
                     raised
-                    name="add"
+                    name={(!this.state.showCreator)? "add": "remove"}
                     size={22}
                     color='green'
-                    onPress={this.showFastPassCreator} />
+                    onPress={(!this.state.showCreator)? this.showFastPassCreator: this.hideFastPassCreator} />
                 </View>
                 <Collapsible 
-                    collapsed={this.state.showCreator}></Collapsible>
+                    collapsed={!this.state.showCreator}>
+                    {this.renderCreator()}
+                </Collapsible>
                 <View style={{
                     width: '100%',
                     height: this.state.height,

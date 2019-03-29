@@ -233,7 +233,7 @@ export default class Rides extends React.Component {
 
     refreshAll = () => {
         //TODO: Refresh Rides every load
-        //this.refreshRides();
+        this.refreshRides();
         this.refreshSchedules();
         this.refreshPasses();
         this.refreshWeather(moment());

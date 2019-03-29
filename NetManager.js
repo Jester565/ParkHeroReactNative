@@ -1,9 +1,10 @@
 import {AsyncStorage, NetInfo, AppState} from 'react-native';
 import { GoogleSignin, statusCodes } from 'react-native-google-signin';
-import Amplify, { Auth, API, graphqlOperation } from 'aws-amplify';
+import Amplify, { Auth, API, graphqlOperation, Hub } from 'aws-amplify';
 import * as mutations from './src/graphql/mutations';
 var PushNotification = require('react-native-push-notification');
 import AwsExports from './AwsExports';
+import moment from 'moment';
 
 Amplify.configure(AwsExports);
 
@@ -78,6 +79,44 @@ PushNotification.configure({
                 } else if (data.type == "acceptPartyInvite") {
                     title = "New Party Member";
                     msg += payload.user.name + " joined the party";
+                } else if (data.type == "fastPass") {
+                    var rideIDToUpdates = {};
+                    for (var update of payload) {
+                        if (update.error != null) {
+                            console.log("PUSHING ERROR");
+                            PushNotification.localNotification({
+                                title: 'FastPass ERROR',
+                                message: update.error,
+                                soundName: "cars.mp3"
+                            });
+                        } else {
+                            if (rideIDToUpdates[update.rideID] == null) {
+                                rideIDToUpdates[update.rideID] = [];
+                            }
+                            rideIDToUpdates[update.rideID].push(update);
+                        }
+                    }
+                    for (var rideID in rideIDToUpdates) {
+                        var updates = rideIDToUpdates[rideID];
+                        var passIDStr = "";
+                        var latestFastPassDateTime = null;
+                        for (var update of updates) {
+                            if (passIDStr.length > 0) {
+                                passIDStr += ", ";
+                            }
+                            passIDStr += update.passID;
+                            var fastPassDateTime = moment(update.fastPassDateTime, "YYYY-MM-DD HH:mm:ss");
+                            if (latestFastPassDateTime == null || fastPassDateTime > latestFastPassDateTime) {
+                                latestFastPassDateTime = fastPassDateTime;
+                            }
+                        }
+                        var message = "Passes " + passIDStr + " got a FastPass for " + rideID + " at " + latestFastPassDateTime.format("h:mm A");
+                        PushNotification.localNotification({
+                            title: "NEW FASTPASS",
+                            message: message,
+                            soundName: soundName
+                        });
+                    }
                 }
                 if (title != null) {
                     console.log("CREATING LOCAL NOTIFICATION: " + msg);
@@ -288,7 +327,7 @@ function silentSignIn() {
         console.log("CREDS REFERESHED: ", JSON.stringify(refreshInfo));
         var authenticated = refreshInfo.authenticated;
         var expireTime = refreshInfo.expiration;
-
+        
         try {
             try {
                 signInInfo = JSON.parse(await AsyncStorage.getItem('signIn'));
@@ -301,9 +340,6 @@ function silentSignIn() {
                 var createUserData = await API.graphql(graphqlOperation(mutations.createUser, { name: null }));
                 console.log("GRAPHQL DONE");
                 _user = createUserData.data.createUser;
-                if (_snsToken != null) {
-                    _registerSns(_snsToken, _user);
-                }
                 AsyncStorage.setItem('signIn', JSON.stringify({
                     user: _user,
                     authenticated: _authenticated
@@ -333,6 +369,10 @@ function silentSignIn() {
             for (var subKey in _subscriptions) {
                 _subscriptions[subKey]("signInFail", ex);
             }
+        }
+        if (_snsToken != null) {
+            console.log("REGISTERING SNS");
+            _registerSns(_snsToken, _user);
         }
     }).catch((e) => {
         console.warn("REFRESH CREDS ERR: ", e);

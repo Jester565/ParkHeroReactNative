@@ -162,7 +162,9 @@ export const deleteInvite = `mutation DeleteInvite($type: Int, $isOwner: Boolean
   deleteInvite(type: $type, isOwner: $isOwner, userID: $userID)
 }
 `;
-export const updatePlannedFpTransactions = `mutation UpdatePlannedFpTransactions($plannedTransactions: [PlannedFpPassIn]) {
+export const updatePlannedFpTransactions = `mutation UpdatePlannedFpTransactions(
+  $plannedTransactions: [PlannedFpTransactionIn]
+) {
   updatePlannedFpTransactions(plannedTransactions: $plannedTransactions) {
     transactions {
       attractionID
@@ -210,6 +212,7 @@ export const updatePlannedFpTransactions = `mutation UpdatePlannedFpTransactions
         fastPassInfo {
           selectionDateTime
           earliestSelectionDateTime
+          earliestSelectionDateTimes
           priority
         }
       }

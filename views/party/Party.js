@@ -517,7 +517,8 @@ export default class Party extends React.Component {
                     alignContent: 'center',
                     marginTop: 20
                 }}>
-                    <FastPasses />
+                    <FastPasses 
+                        navigation={this.props.navigation} />
                 </View>
             </PassParallax>);
     }
