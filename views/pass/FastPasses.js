@@ -555,7 +555,7 @@ export default class FastPasses extends React.Component {
         for (var plannedTransaction of this.plannedTransactions) {
             if (plannedTransaction.id == transactionID) {
                 for (var pass of plannedTransaction.passes) {
-                    passToPriorities[pass.id] = pass.currentPriority;
+                    passToPriorities[pass.id] = pass.priority;
                 }
                 break;
             }
