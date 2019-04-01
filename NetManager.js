@@ -50,19 +50,22 @@ PushNotification.configure({
                         if (msg.length > 0) {
                             msg += "\n";
                         }
-                                            var fieldSet = false;
+                        var fieldSet = false;
                         msg += update.rideName;
+                        if (update.closedMins != null) {
+                            msg += (fieldSet? ", ": " ") + "opened after " + update.closedMins.toString()
+                        }
                         if (update.waitMins != null) {
                             msg += "'s wait is " + update.waitMins.updated.toString() + " mins";
                             fieldSet = true;
-                        } else if (update.waitRating != null && update.waitMins == null) {
+                        } 
+                        if (update.waitRating != null && update.waitMins == null) {
                             msg += (fieldSet? ", ": "'s ") + "wait is " + update.waitRating.updated.toString() + " mins";
                             fieldSet = true;
-                        } else if (update.fastPassTime != null) {
+                        } 
+                        if (update.fastPassTime != null) {
                             msg += (fieldSet? ", ": "'s ") + "FastPass is at " + moment(update.fastPassTime.updated, "YYYY-MM-DD HH:mm:ss").format("h:mm A")
                             fieldSet = true;
-                        } else if (update.closedMins != null) {
-                            msg += (fieldSet? ", ": " ") + "opened after " + update.closedMins.toString()
                         }
                     }
                 } else if (data.type == "addFriend") {
@@ -117,6 +120,23 @@ PushNotification.configure({
                             soundName: soundName
                         });
                     }
+                } else if (data.type == "selection") {
+                    var isEarliest = false;
+                    for (var update of payload) {
+                        if (update.isEarliest) {
+                            isEarliest = true;
+                        }
+                        if (passIDStr.length > 0) {
+                            passIDStr += ", ";
+                        }
+                        passIDStr += update.passID;
+                    }
+                    PushNotification.localNotification({
+                        title: "NEW SELECTION AVAILABLE",
+                        message: passIDStr + " can make a FastPass selection" + (isEarliest)? " after you ride stuff": "",
+                        soundName: soundName,
+                        data: data
+                    });
                 }
                 if (title != null) {
                     console.log("CREATING LOCAL NOTIFICATION: " + msg);
