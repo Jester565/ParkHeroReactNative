@@ -9,8 +9,8 @@ import {
     TouchableWithoutFeedback } from 'react-native';
 import { Icon, FormInput } from 'react-native-elements';
 import { RNCamera } from 'react-native-camera';
-import Theme from '../../Theme';
 import { Immersive } from 'react-native-immersive';
+import * as Animatable from 'react-native-animatable';
 
 const flashModeOrder = {
     auto: 'off',
@@ -65,7 +65,30 @@ export default class Camera extends React.Component {
         Immersive.setImmersive(false);
     }
 
-    onOrientationChanged = () => {
+    transitionIcons = (fromStyle, toStyle, duration) => {
+        this.refs._closeIcon.transition(fromStyle, toStyle, duration);
+        this.refs._orientationIcon.transition(fromStyle, toStyle, duration);
+        this.refs._directionIcon.transition(fromStyle, toStyle, duration);
+        this.refs._flashIcon.transition(fromStyle, toStyle, duration);
+        this.refs._bottomLeftIcon.transition(fromStyle, toStyle, duration);
+        this.refs._bottomMiddleIcon.transition(fromStyle, toStyle, duration);
+        this.refs._bottomRightIcon.transition(fromStyle, toStyle, duration);
+    }
+
+    toggleOrientation = () => {
+        if (this.state.portrait) {
+            this.transitionIcons({
+                transform: [{ rotate: '0deg'}]
+            }, {
+                transform: [{ rotate: '90deg'}]
+            }, 200);
+        } else {
+            this.transitionIcons({
+                transform: [{ rotate: '90deg'}]
+            }, {
+                transform: [{ rotate: '0deg'}]
+            }, 200);
+        }
         this.setState({
             portrait: !this.state.portrait
         });
@@ -127,6 +150,10 @@ export default class Camera extends React.Component {
         this.setState({
             zoom: this.state.zoom + 0.1 > 1 ? 1 : this.state.zoom + 0.1,
         });
+    }
+
+    onClose = () => {
+        this.props.navigation.goBack();
     }
     
     takePicture = async () => {
@@ -206,17 +233,20 @@ export default class Camera extends React.Component {
                             left: 0,
                             top: 0
                         }}
-                        onPress={this.hideDarkScreen}>
-                            <Icon
+                        activeOpacity={0.6}>
+                            <Animatable.View
+                            ref="_darkIcon">
+                                <Icon
                                 raised
                                 color='#333333'
                                 containerStyle={{
                                     backgroundColor: '#111111'
                                 }}
-                                name={(this.state.isRecording)? 'stop': 'camera'}
+                                name={(this.state.isRecording)? 'stop': 'fiber-manual-record'}
                                 onPress={(this.state.isRecording)? this.stopVideo: this.takeVideo}
                                 size={80}
                                 />
+                            </Animatable.View>
                         </TouchableOpacity>): (
                             <View style={{
                                 flex: 1
@@ -228,18 +258,36 @@ export default class Camera extends React.Component {
                                     alignItems: 'center',
                                     backgroundColor: 'rgba(0, 0, 0, 0.4)'
                                 }}>
-                                    <Icon
-                                    color='#FFFFFF'
-                                    name={(this.state.type == 'front')? 'camera-rear': 'camera-front'}
-                                    onPress={this.toggleFacing}
-                                    size={iconSize}
-                                    />
-                                    <Icon
-                                    color='#FFFFFF'
-                                    name={flashIconName}
-                                    onPress={this.toggleFlash}
-                                    size={iconSize}
-                                    />
+                                    <Animatable.View
+                                    ref="_orientationIcon">
+                                        <Icon
+                                        color={(this.state.isRecording)? 'black': '#FFFFFF'}
+                                        name={(this.state.portrait)? 'rotate-right': 'rotate-left'}
+                                        onPress={this.toggleOrientation}
+                                        size={iconSize}
+                                        disabled={this.state.isRecording}
+                                        />
+                                    </Animatable.View>
+                                    <Animatable.View
+                                    ref="_directionIcon">
+                                        <Icon
+                                        color={(this.state.isRecording)? 'black': '#FFFFFF'}
+                                        name={(this.state.type == 'front')? 'camera-rear': 'camera-front'}
+                                        onPress={this.toggleFacing}
+                                        size={iconSize}
+                                        disabled={this.state.isRecording}
+                                        />
+                                    </Animatable.View>
+                                    <Animatable.View
+                                    ref="_flashIcon">
+                                        <Icon
+                                        color={(this.state.isRecording)? 'black': '#FFFFFF'}
+                                        name={flashIconName}
+                                        onPress={this.toggleFlash}
+                                        size={iconSize}
+                                        disabled={this.state.isRecording}
+                                        />
+                                    </Animatable.View>
                                 </View>
                                 <View style={[styles.autoFocusBox, drawFocusRingPosition]} />
                                 <TouchableWithoutFeedback onPress={this.touchToFocus}>
@@ -251,47 +299,64 @@ export default class Camera extends React.Component {
                                     justifyContent: 'space-evenly',
                                     alignItems: 'center',
                                 }}>
-                                    <Icon
-                                    raised
-                                    color='#FFFFFF'
-                                    containerStyle={{
-                                        backgroundColor: 'red'
-                                    }}
-                                    name={(this.state.isRecording)? 'fullscreen': 'fiber-manual-record'}
-                                    onPress={(!this.state.isRecording)? this.takeVideo: this.showDarkScreen}
-                                    size={iconSize / 1.7}
-                                    />
-                                    <Icon
-                                    raised
-                                    color='#FFFFFF'
-                                    containerStyle={{
-                                        backgroundColor: 'red'
-                                    }}
-                                    name={(this.state.isRecording)? 'stop': 'camera'}
-                                    onPress={(!this.state.isRecording)? this.takePicture: this.stopVideo}
-                                    size={iconSize / 1.2}
-                                    />
-                                    <Icon
-                                    raised
-                                    color='#FFFFFF'
-                                    disabledStyle={{
-                                        backgroundColor: 'black'
-                                    }}
-                                    disabledTextStyle={{
-                                        color: 'gray'
-                                    }}
-                                    containerStyle={{
-                                        backgroundColor: 'red'
-                                    }}
-                                    name={'rotate-right'}
-                                    size={iconSize / 1.7}
-                                    onPress={this.onOrientationChanged}
-                                    disabled={this.state.isRecording}
-                                    />
+                                    <Animatable.View
+                                    ref="_bottomLeftIcon">
+                                        <Icon
+                                        raised
+                                        color='#FFFFFF'
+                                        containerStyle={{
+                                            backgroundColor: 'red'
+                                        }}
+                                        name={(this.state.isRecording)? 'fullscreen': 'fiber-manual-record'}
+                                        onPress={(!this.state.isRecording)? this.takeVideo: this.showDarkScreen}
+                                        size={iconSize / 1.7}
+                                        />
+                                    </Animatable.View>
+                                    <Animatable.View
+                                    ref="_bottomMiddleIcon">
+                                        <Icon
+                                        raised
+                                        color='#FFFFFF'
+                                        containerStyle={{
+                                            backgroundColor: 'red'
+                                        }}
+                                        name={(this.state.isRecording)? 'stop': 'camera'}
+                                        onPress={(!this.state.isRecording)? this.takePicture: this.stopVideo}
+                                        size={iconSize / 1.2}
+                                        />
+                                    </Animatable.View>
+                                    <Animatable.View
+                                    ref="_bottomRightIcon">
+                                        <Icon
+                                        raised
+                                        color='#FFFFFF'
+                                        containerStyle={{
+                                            backgroundColor: (this.state.isRecording)? 'black': 'red'
+                                        }}
+                                        name={'photo-library'}
+                                        size={iconSize / 1.7}
+                                        disabled={this.state.isRecording}
+                                        />
+                                    </Animatable.View>
                                 </View>
                             </View>
                         )
                 }
+                <Animatable.View
+                ref="_closeIcon"
+                style={{
+                    position: 'absolute',
+                    right: 0,
+                    top: 0
+                }}>
+                    <Icon
+                    color={(this.state.immersive)? '#333333': (!this.state.isRecording)? '#FFFFFF': 'black'}
+                    disabled={this.state.isRecording && !this.state.immersive}
+                    name={'close'}
+                    size={iconSize}
+                    onPress={(this.state.immersive)? this.hideDarkScreen: this.onClose}
+                    />
+                </Animatable.View>
             </View>
         </RNCamera>
         );
