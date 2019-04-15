@@ -11,6 +11,7 @@ import ResortMap from './views/map/ResortMap';
 import { createStackNavigator, createAppContainer } from 'react-navigation';
 import Theme from './Theme';
 import NetManager from './NetManager';
+import Camera from './views/media/Camera';
 
 NetManager.init();
 
@@ -24,7 +25,8 @@ const navigator = createStackNavigator({
     Friends: {screen: Friends},
     ScheduleCalendar: {screen: ScheduleCalendar},
     RideSelector: {screen: RideSelector},
-    ResortMap: {screen: ResortMap}
+    ResortMap: {screen: ResortMap},
+    Camera: {screen: Camera}
   }, {
     cardStyle: {
       backgroundColor: Theme.SECONDARY_BACKGROUND

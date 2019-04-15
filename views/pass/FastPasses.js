@@ -32,6 +32,8 @@ export default class FastPasses extends React.Component {
         this.signedUrls = {};
         this.signPromises = {};
 
+        this.MAX_SEL_MIN_DIFF = 2;
+
         this.state = {
             allTransactions: [],
             passGroups: [],
@@ -289,6 +291,7 @@ export default class FastPasses extends React.Component {
                 });
             }
         }
+        console.log("HERE 1");
         var passGroups = [];
         this.passGroupMap = {};
         var groupName = 'A';
@@ -307,7 +310,7 @@ export default class FastPasses extends React.Component {
             passIDs.sort();
             //Sorts selection times so that the max is at 0
             selectionDateTimes.sort((dt1, dt2) => {
-                return dt1.valueOf() - dt2.valueOf();
+                return dt2.valueOf() - dt1.valueOf();
             });
             var passIDsConcat = "";
             for (var passID of passIDs) {
@@ -327,26 +330,44 @@ export default class FastPasses extends React.Component {
             return passIDsConcat;
         }
         //Passes with different selection datetimes are in different groups
-        var selectionDateTimeMap = {};
+        var passSelectionDateTimes = [];
         for (var passID in allPassMap) {
             var allPass = allPassMap[passID];
-            var selectionDateTimeStr = (allPass.fastPassInfo && allPass.fastPassInfo.selectionDateTime)? allPass.fastPassInfo.selectionDateTime: ""
-            if (selectionDateTimeMap[selectionDateTimeStr] == null) {
-                selectionDateTimeMap[selectionDateTimeStr] = [];
+            var selectionMillis = (allPass.fastPassInfo && allPass.fastPassInfo.selectionDateTime)? moment(allPass.fastPassInfo.selectionDateTime, 'YYYY-MM-DD HH:mm:ss').valueOf(): 0;
+            passSelectionDateTimes.push({
+                millis: selectionMillis,
+                pass: { id: passID }
+            });
+        }
+        console.log("HERE 2");
+        passSelectionDateTimes.sort((d1, d2) => {
+            return d1.millis - d2.millis
+        });
+
+        var selectionTimePasses = [];
+        passSelectionDateTimes.forEach((passSelectionDateTime, i) => {
+            var minDiff = (i > 0)? (passSelectionDateTime.millis - passSelectionDateTimes[i - 1].millis)/ (60 * 1000): 0;
+            if (Math.abs(minDiff) > this.MAX_SEL_MIN_DIFF) {
+                addGroup(selectionTimePasses);
+                selectionTimePasses = [];
             }
-            selectionDateTimeMap[selectionDateTimeStr].push(allPass.pass);
+            selectionTimePasses.push(passSelectionDateTime.pass);
+        });
+        console.log("HERE 3");
+        if (selectionTimePasses.length > 0) {
+            addGroup(selectionTimePasses);
         }
-        for (var selectionDateTimeStr in selectionDateTimeMap) {
-            addGroup(selectionDateTimeMap[selectionDateTimeStr]);
-        }
+        
         var allTransactions = [];
         
+        console.log("HERE 4");
         for (var transaction of fastPassData.transactions) {
             var groupKey = addGroup(transaction.passes);
             transaction.passGroups = [groupKey];
             transaction.planned = false;
             allTransactions.push(transaction);
         }
+        console.log("HERE 5");
         for (var plannedTransaction of fastPassData.plannedTransactions) {
             var priorityToPasses = {};
             for (var pass of plannedTransaction.passes) {
@@ -363,6 +384,7 @@ export default class FastPasses extends React.Component {
             plannedTransaction.planned = true;
             allTransactions.push(plannedTransaction);
         }
+        console.log("HERE 6");
         
         var uniqueColors = this.genUniqueColors(passGroups.length);
         passGroups.forEach((passGroup, i) => {
@@ -389,9 +411,7 @@ export default class FastPasses extends React.Component {
                 S3_URL + transaction.attractionOfficialPicUrl + "-2.webp": 
                 this.getSignedUrl(transaction.attractionID, transaction.attractionPicUrl, 2);
         }
-        console.log("ALL TRANS: ", JSON.stringify(allTransactions));
-        console.log("PASS GROUPS: ", JSON.stringify(passGroups));
-        console.log("HEIGHT: ", y + this.TRANSACTION_HEIGHT / 2);
+        console.log("HERE 7");
         this.setState({
             allTransactions: allTransactions,
             passGroups: passGroups,
@@ -578,13 +598,20 @@ export default class FastPasses extends React.Component {
         }
         
         API.graphql(graphqlOperation(mutations.updatePlannedFpTransactions, { plannedTransactions: payload })).then((data) => {
-            var fastPassData = data.data.updatePlannedFpTransactions;
-            console.log("REMOVE FAST PASS DATA: ", JSON.stringify(fastPassData));
-            this.parseFastPasses(fastPassData);
-            Toast.show('PLANNED FP REMOVED');
-            this.setState({
-                submitting: false
-            });
+            try {
+                var fastPassData = data.data.updatePlannedFpTransactions;
+                console.log("REMOVE FAST PASS DATA: ", JSON.stringify(fastPassData));
+                this.parseFastPasses(fastPassData);
+                Toast.show('PLANNED FP REMOVED');
+                this.setState({
+                    submitting: false
+                });
+            } catch (e) {
+                console.log("REFRESH FP DISPLAY ERR: ", JSON.stringify(e));
+                Toast.show('REFRESH FP DISPLAY ERR: ' + JSON.stringify(e), {
+                    duration: 120000
+                });
+            }
         }).catch((e) => {
             Toast.show('FP REMOVE ERR: ' + JSON.stringify(e), {
                 duration: 120000

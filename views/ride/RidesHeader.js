@@ -29,13 +29,17 @@ export default class RidesHeader extends React.Component {
     }
 
     handleAppStateChange = (nextAppState) => {
-        if (this.refreshMessageUpdater != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
-            clearInterval(this.refreshMessageUpdater);
-        } else if (nextAppState == 'active' && (this.appState == 'background' || this.appState == 'inactive')) {
-            if (this.props.lastRefresh != null) {
-                this.updateRefreshMessage();
-                this.refreshMessageUpdater = setInterval(this.updateRefreshMessage, this.REFRESH_MESSAGE_INTERVAL);
+        try {
+            if (this.refreshMessageUpdater != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
+                clearInterval(this.refreshMessageUpdater);
+            } else if (nextAppState == 'active' && (this.appState == 'background' || this.appState == 'inactive')) {
+                if (this.props.lastRefresh != null) {
+                    this.updateRefreshMessage();
+                    this.refreshMessageUpdater = setInterval(this.updateRefreshMessage, this.REFRESH_MESSAGE_INTERVAL);
+                }
             }
+        } catch (e) {
+            console.log("HANDLED APP CHANGE")
         }
         this.appState = nextAppState;
     }

@@ -181,26 +181,30 @@ var _appState = null;
 var _subscriptions = {};
 
 function _registerSns(token, user) {
-    var getPromises = [
-        AsyncStorage.getItem("endpointUserID"),
-        AsyncStorage.getItem("endpointArn"),
-        AsyncStorage.getItem("subscriptionArn")
-    ];
-    Promise.all(getPromises).then((values) => {
-        var endpointUserID = values[0];
-        var endpointArn = values[1];
-        var subscriptionArn = values[2];
-        API.graphql(graphqlOperation(mutations.verifySns, { 
-            token: token, 
-            endpointArn: endpointArn,
-            endpointUserID: endpointUserID,
-            subscriptionArn: subscriptionArn 
-        })).then((data) => {
-            AsyncStorage.setItem("endpointUserID", user.id);
-            AsyncStorage.setItem("endpointArn", data.data.verifySns.endpointArn);
-            AsyncStorage.setItem("subscriptionArn", data.data.verifySns.subscriptionArn);
+    try {
+        var getPromises = [
+            AsyncStorage.getItem("endpointUserID"),
+            AsyncStorage.getItem("endpointArn"),
+            AsyncStorage.getItem("subscriptionArn")
+        ];
+        Promise.all(getPromises).then((values) => {
+            var endpointUserID = values[0];
+            var endpointArn = values[1];
+            var subscriptionArn = values[2];
+            API.graphql(graphqlOperation(mutations.verifySns, { 
+                token: token, 
+                endpointArn: endpointArn,
+                endpointUserID: endpointUserID,
+                subscriptionArn: subscriptionArn 
+            })).then((data) => {
+                AsyncStorage.setItem("endpointUserID", user.id);
+                AsyncStorage.setItem("endpointArn", data.data.verifySns.endpointArn);
+                AsyncStorage.setItem("subscriptionArn", data.data.verifySns.subscriptionArn);
+            });
         });
-    });
+    } catch (e) {
+        console.log("REGISTER SNS ERR: ", JSON.stringify(e));
+    }
 }
 
 function subscribe(subscription) {
@@ -229,43 +233,51 @@ function _refreshLogin() {
 }
 
 function _handleConnectivityChange(isConnected) {
-    console.log("CONNECTION CHANGE: ", isConnected);
-    if (isConnected) {
-        NetInfo.isConnected.removeEventListener(
-            'connectionChange',
-            _handleConnectivityChange
-        );
-        AppState.removeEventListener('change', _handleAppStateChange);
-        silentSignIn();
+    try {
+        console.log("CONNECTION CHANGE: ", isConnected);
+        if (isConnected) {
+            NetInfo.isConnected.removeEventListener(
+                'connectionChange',
+                _handleConnectivityChange
+            );
+            AppState.removeEventListener('change', _handleAppStateChange);
+            silentSignIn();
+        }
+    } catch (e) {
+        console.log("CONN CHANGE ERR: ", e)
     }
 }
 
 function _handleAppStateChange(nextAppState) {
-    if (nextAppState == 'active' && (_appState == 'background' || _appState == 'inactive')) {
-        NetInfo.isConnected.fetch().then(isConnected => {
-            if (isConnected) {
-                console.log("APP STATE INVOKE");
-                NetInfo.isConnected.removeEventListener(
-                    'connectionChange',
-                    _handleConnectivityChange
-                );
-                AppState.removeEventListener('change', _handleAppStateChange);
-                silentSignIn();
-            } else {
-                NetInfo.isConnected.addEventListener(
-                    'connectionChange',
-                    _handleConnectivityChange
-                );
-            }
-        });
-    } else if ((nextAppState == 'background' || nextAppState == 'inactive') && _appState == 'active') {
-        NetInfo.isConnected.removeEventListener(
-            'connectionChange',
-            _handleConnectivityChange
-        );
-        clearTimeout(this._refreshTimeout);
+    try {
+        if (nextAppState == 'active' && (_appState == 'background' || _appState == 'inactive')) {
+            NetInfo.isConnected.fetch().then(isConnected => {
+                if (isConnected) {
+                    console.log("APP STATE INVOKE");
+                    NetInfo.isConnected.removeEventListener(
+                        'connectionChange',
+                        _handleConnectivityChange
+                    );
+                    AppState.removeEventListener('change', _handleAppStateChange);
+                    silentSignIn();
+                } else {
+                    NetInfo.isConnected.addEventListener(
+                        'connectionChange',
+                        _handleConnectivityChange
+                    );
+                }
+            });
+        } else if ((nextAppState == 'background' || nextAppState == 'inactive') && _appState == 'active') {
+            NetInfo.isConnected.removeEventListener(
+                'connectionChange',
+                _handleConnectivityChange
+            );
+            clearTimeout(this._refreshTimeout);
+        }
+        _appState = nextAppState;
+    } catch (e) {
+        console.log("APP CHANGE: ", e);
     }
-    _appState = nextAppState;
 }
 
 /*
@@ -280,18 +292,26 @@ function _handleAppStateChange(nextAppState) {
 */
 
 function init() {
-    NetInfo.isConnected.fetch().then(isConnected => {
-        if (isConnected) {
-            console.log("INITIAL IS CONNECTED INVOKE");
-            silentSignIn();
-        } else {
-            AppState.addEventListener('change', _handleAppStateChange);
-            NetInfo.isConnected.addEventListener(
-                'connectionChange',
-                _handleConnectivityChange
-            );
-        }
-    });
+    try {
+        NetInfo.isConnected.fetch().then(isConnected => {
+            try {
+                if (isConnected) {
+                    console.log("INITIAL IS CONNECTED INVOKE");
+                    silentSignIn();
+                } else {
+                    AppState.addEventListener('change', _handleAppStateChange);
+                    NetInfo.isConnected.addEventListener(
+                        'connectionChange',
+                        _handleConnectivityChange
+                    );
+                }
+            } catch (e) {
+                console.log("CON ERR: ", e);
+            }
+        });
+    } catch (e) {
+        console.log("INIT ERR: ", e)
+    }
 }
 
 function silentSignIn() {
@@ -397,11 +417,13 @@ function silentSignIn() {
     }).catch((e) => {
         console.warn("REFRESH CREDS ERR: ", e);
     });
-    NetInfo.isConnected.addEventListener(
-        'connectionChange',
-        _handleConnectivityChange
-    );
-    AppState.addEventListener('change', _handleAppStateChange);
+    try {
+        NetInfo.isConnected.addEventListener(
+            'connectionChange',
+            _handleConnectivityChange
+        );
+        AppState.addEventListener('change', _handleAppStateChange);
+    } catch (e) {}
 }
 
 function signIn(authenticated, username) {

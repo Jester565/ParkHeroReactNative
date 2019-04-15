@@ -621,7 +621,6 @@ export default class Rides extends React.Component {
 
     setRideDPs = (allRideDPs) => {
         //The dpI system saves time but enforces that all rideDPs have the same intervals (should be true)
-        var dpI = -1;
         var diffDateTimeStrs = (dtStr1, dtStr2) => {
             return (dtStr1 != null && dtStr2 != null)? (moment(dtStr1, "YYYY-MM-DD HH:mm:ss").valueOf() - moment(dtStr2, "YYYY-MM-DD HH:mm:ss").valueOf()): null;
         }
@@ -631,20 +630,18 @@ export default class Rides extends React.Component {
         var rides = this.state.rides.slice();
         for (var rideDPs of allRideDPs) {
             var rideID = rideDPs.rideID;
-            if (dpI < 0) {
-                dpI = 0;
-                for (var dp of rideDPs.dps) {
-                    var dpDT = moment(dp.dateTime, "YYYY-MM-DD HH:mm:ss");
-                    if (dpDT >= this.state.dateTime) {
-                        break;
-                    }
-                    dpI++;
+            var dpI = 0;
+            for (var dp of rideDPs.dps) {
+                var dpDT = moment(dp.dateTime, "YYYY-MM-DD HH:mm:ss");
+                if (dpDT >= this.state.dateTime) {
+                    break;
                 }
-                var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
-                var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
-                dpDtDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.dateTime, prevDP.dateTime): null;
-                dpSelectedDtDiff = (prevDP != null && prevDP.dateTime != null)? (this.state.dateTime.valueOf() - moment(prevDP.dateTime, "YYYY-MM-DD HH:mm:ss")): null
+                dpI++;
             }
+            var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
+            var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
+            dpDtDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.dateTime, prevDP.dateTime): null;
+            dpSelectedDtDiff = (prevDP != null && prevDP.dateTime != null)? (this.state.dateTime.valueOf() - moment(prevDP.dateTime, "YYYY-MM-DD HH:mm:ss")): null
             var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
             var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
             var fpDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.fastPassTime, prevDP.fastPassTime): null;

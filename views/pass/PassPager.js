@@ -14,6 +14,7 @@ import * as mutations from '../../src/graphql/mutations';
 import * as subscriptions from '../../src/graphql/subscriptions';
 import Amplify, { API, graphqlOperation } from 'aws-amplify';
 import NetManager from '../../NetManager';
+import Toast from 'react-native-root-toast';
 
 Amplify.configure(AwsExports);
 
@@ -59,6 +60,29 @@ export default class PassPager extends React.Component {
         }
     }
 
+    onReqRefreshPasses = () => {
+        API.graphql(graphqlOperation(mutations.refreshPasses)).then((data) => {
+            Toast.show("REFRESHED");
+        }).catch((e) => {
+            Toast.show("REFRESH ERR: " + JSON.stringify(e, null, 2), {
+                duration: 120000
+            });
+        });
+    }
+
+    onReqSyncPasses = () => {
+        var passID = this.state.passes[this.state.passI].id;
+        API.graphql(graphqlOperation(mutations.syncPasses, {
+            passID: passID
+        })).then((data) => {
+            Toast.show("SYNCED");
+        }).catch((e) => {
+            Toast.show("SYNC ERR: " + JSON.stringify(e, null, 2), {
+                duration: 120000
+            });
+        });
+    }
+
     onNetChange = (event, payload) => {
         if (event == 'netSignIn' && this.splitSubscription == null) {
             this.subToSplitters();
@@ -66,8 +90,12 @@ export default class PassPager extends React.Component {
     }
 
     handleAppStateChange = (nextAppState) => {
-        if (this.splitSubscription != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
-            this.unsubFromSplitters();
+        try {
+            if (this.splitSubscription != null && (nextAppState == 'background' || nextAppState == 'inactive') && this.appState == 'active') {
+                this.unsubFromSplitters();
+            }
+        } catch (ex) {
+            console.log("UNSUBSPLIT ERR: ", ex);
         }
         this.appState = nextAppState;
     }
@@ -291,12 +319,14 @@ export default class PassPager extends React.Component {
     showEdit = () => {
         this.refs._visibilityPass.bounceInLeft(this.ANIMATION_DURATION);
         this.refs._removePass.bounceInRight(this.ANIMATION_DURATION);
+        this.refs._bottomEdit2.bounceInUp(this.ANIMATION_DURATION);
         return this.refs._bottomEdit.bounceInUp(this.ANIMATION_DURATION);
     }
 
     hideEdit = () => {
         this.refs._visibilityPass.bounceOutLeft(this.ANIMATION_DURATION);
         this.refs._removePass.bounceOutRight(this.ANIMATION_DURATION);
+        this.refs._bottomEdit2.bounceOutDown(this.ANIMATION_DURATION);
         return this.refs._bottomEdit.bounceOutDown(this.ANIMATION_DURATION);
     }
 
@@ -326,7 +356,7 @@ export default class PassPager extends React.Component {
                 margin: 10, 
                 borderRadius: 10, 
                 borderWidth: 2, 
-                borderColor: 'grey' }}
+                borderColor: (pass.hasMaxPass)? '#FFD700': 'grey' }}
             activeOpacity={(this.props.expanded)? 1.0: 0.2}
             onPress={(!this.props.expanded)? this.props.onPress: null}>
             <View style={{ width: "100%", flexDirection: 'row', justifyContent: 'center', alignContent: 'center' }}>
@@ -477,6 +507,31 @@ export default class PassPager extends React.Component {
                     size={this.ICON_SIZE}
                     color='green'
                     onPress={this.onAdd} />
+                </Animatable.View>
+                <Animatable.View ref="_bottomEdit2"
+                animation="bounceIn"
+                duration={this.ANIMATION_DURATION}
+                style={{ 
+                    position: "absolute", 
+                    left: 0, 
+                    top: this.ICON_SIZE * 8, 
+                    width: screenWidth, 
+                    flexDirection: 'row', 
+                    justifyContent: 'space-evenly', 
+                    alignContent: 'center'
+                }}>
+                    <Icon
+                    raised
+                    name="refresh"
+                    size={this.ICON_SIZE}
+                    color="black"
+                    onPress={this.onReqRefreshPasses} />
+                    <Icon
+                    raised
+                    name="arrow-upward"
+                    size={this.ICON_SIZE}
+                    color='black'
+                    onPress={this.onReqSyncPasses} />
                 </Animatable.View>
             </View>
         )

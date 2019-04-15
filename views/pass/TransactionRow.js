@@ -49,7 +49,7 @@ export default class TransactionRow extends React.PureComponent {
         var orderDateTimeStr = null;
         toDurStr = (mins) => {
             if (mins < 60) {
-                return Math.trunc(mins).toString + ' Mins';
+                return Math.trunc(mins).toString() + ' Mins';
             } else if (mins < 150) {
                 var hrMins = (Math.trunc(mins) % 60);
                 return `${Math.trunc(mins / 60.0)} hr${(mins / 60.0 >= 2)? 's': ''} ${(hrMins > 0)? ' & ' + hrMins + ` min${(hrMins > 1)? 's': ''}`: ''}`;

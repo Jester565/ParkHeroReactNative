@@ -220,3 +220,11 @@ export const updatePlannedFpTransactions = `mutation UpdatePlannedFpTransactions
   }
 }
 `;
+export const refreshPasses = `mutation RefreshPasses {
+  refreshPasses
+}
+`;
+export const syncPasses = `mutation SyncPasses($passID: String) {
+  syncPasses(passID: $passID)
+}
+`;

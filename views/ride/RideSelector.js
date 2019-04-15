@@ -66,7 +66,6 @@ export default class RideSelector extends React.Component {
     }
 
     setRideDPs = (allRideDPs) => {
-        var dpI = -1;
         var diffDateTimeStrs = (dtStr1, dtStr2) => {
             return (dtStr1 != null && dtStr2 != null)? (moment(dtStr1, "YYYY-MM-DD HH:mm:ss").valueOf() - moment(dtStr2, "YYYY-MM-DD HH:mm:ss").valueOf()): null;
         }
@@ -87,20 +86,18 @@ export default class RideSelector extends React.Component {
                     continue;
                 }
             }
-            if (dpI < 0) {
-                dpI = 0;
-                for (var dp of rideDPs.dps) {
-                    var dpDT = moment(dp.dateTime, "YYYY-MM-DD HH:mm:ss");
-                    if (dpDT >= this.state.dateTime) {
-                        break;
-                    }
-                    dpI++;
+            var dpI = 0;
+            for (var dp of rideDPs.dps) {
+                var dpDT = moment(dp.dateTime, "YYYY-MM-DD HH:mm:ss");
+                if (dpDT >= this.state.dateTime) {
+                    break;
                 }
-                var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
-                var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
-                dpDtDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.dateTime, prevDP.dateTime): null;
-                dpSelectedDtDiff = (prevDP != null && prevDP.dateTime != null)? (this.state.dateTime.valueOf() - moment(prevDP.dateTime, "YYYY-MM-DD HH:mm:ss")): null
+                dpI++;
             }
+            var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
+            var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
+            dpDtDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.dateTime, prevDP.dateTime): null;
+            dpSelectedDtDiff = (prevDP != null && prevDP.dateTime != null)? (this.state.dateTime.valueOf() - moment(prevDP.dateTime, "YYYY-MM-DD HH:mm:ss")): null;
             var prevDP = (dpI > 0)? rideDPs.dps[dpI - 1]: null;
             var dp = (dpI < rideDPs.dps.length)? rideDPs.dps[dpI]: null;
             var fpDiff = (dp != null && prevDP != null)? diffDateTimeStrs(dp.fastPassTime, prevDP.fastPassTime): null;
@@ -205,7 +202,9 @@ export default class RideSelector extends React.Component {
     render() {
         var clearIcon = (this.state.query != null && this.state.query.length > 0)? { name: 'close', style: { width: 30, height: 30, marginLeft: 3, marginTop: -7, fontSize: 30, alignSelf: "center" } }: null;
         return (
-        <View>
+        <View style={{
+            marginBottom: 100
+        }}>
             <View style={{
                 width: "100%",
                 flexDirection: 'row',

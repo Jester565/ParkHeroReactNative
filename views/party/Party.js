@@ -50,10 +50,6 @@ export default class Party extends React.Component {
         NetManager.subscribe(this.handleNet)
     }
 
-    componentWillUnmount() {
-        AppState.removeEventListener('change', this.handleAppStateChange);
-    }
-
     handleNet = (event) => {
         if (event == 'netSignIn') {
             this.refreshAll();

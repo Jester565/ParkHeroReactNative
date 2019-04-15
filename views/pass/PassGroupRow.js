@@ -71,7 +71,7 @@ export default class PassGroupRow extends React.PureComponent {
                         </View>
                         <View style={{ width: "100%", flex: 1, flexDirection: 'row', justifyContent: 'space-evenly', alignContent: 'center' }}>
                             <View style={{flex: 1, justifyContent: 'center', alignItems: 'center'}}>
-                                <Text numberOfLines={1} style={{textAlign: 'center', fontSize: fontSize * 0.9 }}>
+                                <Text style={{textAlign: 'center', fontSize: fontSize * 0.9 }}>
                                     {passNamesStr}
                                 </Text>
                             </View>
