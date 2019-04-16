@@ -23,6 +23,7 @@ import NetManager from '../../NetManager';
 import Collapsible from 'react-native-collapsible';
 import RideRow from './RideRow';
 import EventRow from './EventRow';
+import ResortMap from '../map/ResortMap';
 
 Amplify.configure(AwsExports);
 
@@ -1197,6 +1198,11 @@ export default class Rides extends React.Component {
                 renderAttraction={this.renderEvent} />);
         }
     }
+
+    renderMap = () => {
+        return (<ResortMap />);
+    }
+
     render() {
         var dateTime = this.state.dateTime;
         if (dateTime == null) {
@@ -1218,7 +1224,8 @@ export default class Rides extends React.Component {
                 refreshing={this.state.refreshing}
                 renderHeader={this.renderListHeader}
                 onRefresh={this.refreshRides}
-                onParkIChanged={this.onParkIChanged}>
+                onParkIChanged={this.onParkIChanged}
+                renderMap={this.renderMap}>
                     <TouchableOpacity style={{
                         width: "100%"
                     }}

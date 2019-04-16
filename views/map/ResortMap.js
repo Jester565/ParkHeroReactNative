@@ -1,5 +1,5 @@
 import React, { Component } from 'react';
-import { Animated, StyleSheet, Dimensions, Image, View } from 'react-native';
+import { Animated, StyleSheet, Dimensions, Image, View, InteractionManager } from 'react-native';
 import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
 import { PermissionsAndroid } from 'react-native';
 import DynmaicImage from './DynamicImage';
@@ -328,14 +328,30 @@ export default class ResortMap extends Component {
         this.translateX.addListener(( {value} ) => {
             //We multiply lastOffset by two because the value is not 0 and the offset has been set
             this.animOffset.x = value - this.lastOffset.x;
+            if (Math.abs(this.totalOffset.x - value) < 0.001) {
+                if (this.translatedY && !this.decaying) {
+                    this.checkUpdate();
+                }
+                this.translatedX = true;
+            } else {
+                this.translatedX = false;
+            }
             this.totalOffset.x = value;
-            this.checkUpdate();
+            //this.checkUpdate();
         });
         this.translateY.addListener(( {value} ) => {
             //We multiply lastOffset by two because the value is not 0 and the offset has been set
             this.animOffset.y = value - this.lastOffset.y;
+            if (Math.abs(this.totalOffset.y - value) < 0.001) {
+                if (this.translatedX && !this.decaying) {
+                    this.checkUpdate();
+                }
+                this.translatedY = true;
+            } else {
+                this.translatedY = false;
+            }
             this.totalOffset.y = value;
-            this.checkUpdate();
+            //this.checkUpdate();
         });
         this.onGestureEvent = Animated.event(
             [
@@ -397,7 +413,6 @@ export default class ResortMap extends Component {
                 }
             }
         }
-        console.log("LINES: ", lines);
         this.setState({
             lines: lines
         });
@@ -466,7 +481,11 @@ export default class ResortMap extends Component {
     }
 
     onHandlerStateChange = event => {
+        this.translatedX = false;
+        this.translatedY = false;
+
         if (event.nativeEvent.oldState == 0) {
+            this.decaying = false;
             this.translateX.stopAnimation(() => {
                 this.lastOffset.x += this.animOffset.x;
                 this.translateX.setOffset(this.lastOffset.x);
@@ -480,6 +499,8 @@ export default class ResortMap extends Component {
             });
         }
         else if (event.nativeEvent.oldState === State.ACTIVE) {  
+            this.decaying = true;
+
             this.lastOffset.x += event.nativeEvent.translationX;
             this.translateX.setOffset(this.lastOffset.x);
             this.translateX.setValue(0);
@@ -493,14 +514,24 @@ export default class ResortMap extends Component {
                     velocity: event.nativeEvent.velocityX / 2000.0,
                     deceleration: 0.99,
                     useNativeDriver: USENATIVEDRIVER
-                }).start()
+                }).start(() => {
+                    if (this.translatedY) {
+                        this.checkUpdate();
+                    }
+                    this.translatedX = true;
+                })
 
             Animated.decay(this.translateY,
                 {
                     velocity: event.nativeEvent.velocityY / 2000.0,
                     deceleration: 0.99,
                     useNativeDriver: USENATIVEDRIVER
-                }).start()
+                }).start(() => {
+                    if (this.translatedX) {
+                        this.checkUpdate();
+                    }
+                    this.translatedY = true;
+                });
         }
     };
 

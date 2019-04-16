@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, View, RefreshControl, ActivityIndicator } from 'react-native';
+import { Image, View, RefreshControl, ActivityIndicator, Animated, Dimensions } from 'react-native';
 import { Icon, Text } from 'react-native-elements';
 import ParallaxScrollView from 'react-native-parallax-scroll-view';
 import Theme from '../../Theme';
@@ -7,11 +7,15 @@ import moment from 'moment';
 
 export default class RidesParallax extends React.Component {
     constructor(props) {
-        super();
+        super(props);
         this.parkImages = [
             [require('../../assets/castle.jpg'), require('../../assets/castleFront.png')],
             [require('../../assets/pier.jpg'), require('../../assets/pierFront.png')]
-        ]
+        ];
+        this.state = {
+            isMapOpen: false
+        };
+        this.parallaxHeaderHeight = new Animated.Value(358);
     }
 
     renderParkInfo = (parkSchedule) => {
@@ -51,6 +55,22 @@ export default class RidesParallax extends React.Component {
         } else {
             return (<ActivityIndicator size="large" color="#cccccc" />);
         }
+    }
+    
+    toggleMap = () => {
+        var screenHeight = Dimensions.get('window').height;
+        this.setState({
+            isMapOpen: !this.state.isMapOpen
+        }, () => {
+            Animated.timing(
+                this.parallaxHeaderHeight,
+                {
+                    toValue: (this.state.isMapOpen)? screenHeight: 358,
+                    duration: 200
+                }
+            ).start();
+            this.refs._scrollView.scrollTo({ y: 0, animated: true });
+        });
     }
 
     renderScheduleBar = (parkSchedules, weather) => {
@@ -97,31 +117,104 @@ export default class RidesParallax extends React.Component {
         </View>)
     }
 
-    render() {
+    renderMap = () => {
+        var screenWidth = Dimensions.get('window').width;
+        var screenHeight = Dimensions.get('window').height;
+        return (
+            <View style={{
+                width: screenWidth,
+                height: screenHeight
+            }}>
+                {this.props.renderMap()}
+                <View style={{ position: 'absolute', right: 0, bottom: 75, width: '100%', flexDirection: 'row', justifyContent: 'center' }}>
+                    <Icon
+                    name="list"
+                    color={Theme.PRIMARY_FOREGROUND}
+                    size={40}
+                    onPress={this.toggleMap}
+                    containerStyle={{ 
+                        backgroundColor: "rgba(59, 59, 59, 0.8)", 
+                        borderColor: "rgba(255, 255, 255, 0.3)", 
+                        padding: 5, 
+                        borderRadius: 50, 
+                        borderWidth: 2 
+                    }} />
+                </View>
+            </View>
+        );
+    }
+
+    renderForeground = () => {
         var parkSchedule = null;
         if (this.props.parkSchedules != null) {
             parkSchedule = this.props.parkSchedules[this.props.parkI];
         }
 
+        return (<View style={{ width: "100%", height: 370 }}>
+            <View style={{ width: "100%", height: 370, flex: 1, justifyContent: 'center', alignContent: 'center' }}>
+                <View>{ this.renderParkInfo(parkSchedule) }</View>
+            </View>
+            <View style={{ position: "absolute", width: "100%", left: 0, bottom: 0 }}>
+                { this.renderScheduleBar(this.props.parkSchedules, this.props.weather) }
+            </View>
+            { (this.props.parkI > 0)?
+                (<View style={{ position: 'absolute', left: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
+                    <Icon
+                        name="navigate-before"
+                        color={Theme.PRIMARY_FOREGROUND}
+                        size={40}
+                        onPress={() => { this.props.onParkIChanged(this.props.parkI - 1) }}
+                        containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
+                </View>): null
+            }
+            { (this.props.parkI < this.parkImages.length - 1)?
+                (<View style={{ position: 'absolute', right: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
+                    <Icon
+                        name="navigate-next"
+                        color={Theme.PRIMARY_FOREGROUND}
+                        size={40}
+                        onPress={() => { this.props.onParkIChanged(this.props.parkI + 1) }}
+                        containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
+                </View>): null
+            }
+            <View style={{ position: 'absolute', right: 0, bottom: 25, width: '100%', flexDirection: 'row', justifyContent: 'center' }}>
+                <Icon
+                    name="map"
+                    color={Theme.PRIMARY_FOREGROUND}
+                    size={40}
+                    onPress={this.toggleMap}
+                    containerStyle={{ 
+                        backgroundColor: "rgba(59, 59, 59, 0.8)", 
+                        borderColor: "rgba(255, 255, 255, 0.3)", 
+                        padding: 5, 
+                        borderRadius: 50, 
+                        borderWidth: 2 }} />
+            </View>
+        </View>);
+    }
+
+    render() {
+        var screenHeight = Dimensions.get('window').height;
+        
         var backgroundSrc = this.parkImages[this.props.parkI][0];
         var foregroundSrc = this.parkImages[this.props.parkI][1];
         return (<ParallaxScrollView
-            refreshControl={
+            ref="_scrollView"
+            refreshControl={(!this.state.isMapOpen)? (
                 <RefreshControl
                     refreshing={this.props.refreshing}
                     onRefresh={this.props.onRefresh}
                     progressViewOffset={35}
-                />
+                />): null
             }
             backgroundColor={Theme.PRIMARY_BACKGROUND}
             contentBackgroundColor={Theme.SECONDARY_BACKGROUND}
-            parallaxHeaderHeight={358}
+            parallaxHeaderHeight={(this.state.isMapOpen)? screenHeight: 358}
             stickyHeaderHeight={110}
             parallaxBackgroundScrollSpeed={30}
             fadeOutForeground={false}
-            renderFixedHeader={() => {
-                return this.props.renderHeader();
-            }} 
+            renderFixedHeader={this.props.renderHeader} 
+            scrollEnabled={!this.state.isMapOpen}
             renderBackground={() => (<View>
                     <View style={{ width: "100%", height: 350, marginTop: 58 }} >
                         <View>
@@ -131,36 +224,7 @@ export default class RidesParallax extends React.Component {
                     </View>
                 </View>
             )}
-            renderForeground={() => (
-                <View style={{ width: "100%", height: 370 }}>
-                    <View style={{ width: "100%", height: 370, flex: 1, justifyContent: 'center', alignContent: 'center' }}>
-                        <View>{ this.renderParkInfo(parkSchedule) }</View>
-                    </View>
-                    <View style={{ position: "absolute", width: "100%", left: 0, bottom: 0 }}>
-                        { this.renderScheduleBar(this.props.parkSchedules, this.props.weather) }
-                    </View>
-                    { (this.props.parkI > 0)?
-                        (<View style={{ position: 'absolute', left: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                            <Icon
-                                name="navigate-before"
-                                color={Theme.PRIMARY_FOREGROUND}
-                                size={40}
-                                onPress={() => { this.props.onParkIChanged(this.props.parkI - 1) }}
-                                containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
-                        </View>): null
-                    }
-                    { (this.props.parkI < this.parkImages.length - 1)?
-                        (<View style={{ position: 'absolute', right: 0, bottom: 0, height: '80%', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
-                            <Icon
-                                name="navigate-next"
-                                color={Theme.PRIMARY_FOREGROUND}
-                                size={40}
-                                onPress={() => { this.props.onParkIChanged(this.props.parkI + 1) }}
-                                containerStyle={{ backgroundColor: "rgba(59, 59, 59, 0.8)", borderColor: "rgba(255, 255, 255, 0.3)", padding: 5, borderRadius: 50, borderWidth: 2 }} />
-                        </View>): null
-                    }
-                </View>
-            )}>
+            renderForeground={(!this.state.isMapOpen)? this.renderForeground: this.renderMap}>
                 { this.props.children }
         </ParallaxScrollView>);
     }
