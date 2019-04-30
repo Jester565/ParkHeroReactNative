@@ -24,6 +24,7 @@ import Collapsible from 'react-native-collapsible';
 import RideRow from './RideRow';
 import EventRow from './EventRow';
 import ResortMap from '../map/ResortMap';
+import { CachedImage } from 'react-native-cached-image';
 
 Amplify.configure(AwsExports);
 
@@ -1200,7 +1201,75 @@ export default class Rides extends React.Component {
     }
 
     renderMap = () => {
-        return (<ResortMap />);
+        return (<ResortMap 
+            attractions={this.state.rides}
+            renderAttractionMarker={this.renderAttractionMarker} />);
+    }
+
+    renderAttractionMarker = (attraction, x, y) => {
+        var markerSize = 50;
+        var triangleSize = 15;
+        var waitColor = "#000000";
+        if (attraction.waitRating != null) {
+            waitColor = `hsl(${Math.round((this.props.waitRating * 120)/10)}, 100%, 50%)`
+        }
+        return (<View style={{
+            position: 'absolute',
+            left: x - markerSize / 2.0,
+            bottom: y,
+            flex: 1
+        }}>
+            <CachedImage style={{ 
+                    position: 'absolute',
+                    left: 0,
+                    top: 0,
+                    width: markerSize, 
+                    height: markerSize
+                }} 
+                source={{uri: this.props.signedPicUrl}} />
+            <TouchableOpacity style={{
+                width: markerSize,
+                height: markerSize,
+                borderRadius: markerSize / 2,
+                flexDirection: 'column',
+                justifyContent: 'space-between',
+                alignContent: 'center',
+                backgroundColor: 'rgba(255, 255, 255, 0.6)',
+                borderColor: waitColor,
+                borderWidth: 4
+            }}>
+                {
+                    (attraction.waitMins != null)? (
+                        <Text style={{
+                            fontSize: 30
+                        }}>{attraction.waitMins}</Text>
+                    ): null
+                }
+                {
+                    (this.props.fastPassTime != null)? (
+                        <View style={{
+                            fontSize: 20
+                        }}>
+                            { moment(attraction.fastPassTime, 'HH:mm:ss').format('h:mm A') }
+                        </View>
+                    ): null
+                }
+            </TouchableOpacity>
+            <View style={{
+                width: 0,
+                height: 0,
+                backgroundColor: 'transparent',
+                borderStyle: 'solid',
+                borderTopWidth: 0,
+                borderRightWidth: triangleSize,
+                borderTopWidth: triangleSize * 2,
+                borderLeftWidth: triangleSize,
+                borderBottomColor: 'transparent',
+                borderRightColor: 'transparent',
+                borderTopColor: 'red',
+                borderLeftColor: 'transparent',
+            }} />
+        </View>)
     }
 
     render() {

@@ -1,8 +1,7 @@
 import React, { Component } from 'react';
-import { Animated, StyleSheet, Dimensions, Image, View, InteractionManager } from 'react-native';
-import { CachedImage, ImageCacheProvider } from 'react-native-cached-image';
+import { Animated, StyleSheet, Dimensions, View } from 'react-native';
+import { CachedImage } from 'react-native-cached-image';
 import { PermissionsAndroid } from 'react-native';
-import DynmaicImage from './DynamicImage';
 import Svg,{
     Circle,
     Ellipse,
@@ -32,8 +31,6 @@ import {
   ScrollView,
   State,
 } from 'react-native-gesture-handler';
-import DynamicImage from './DynamicImage';
-import LargeImage from './LargeImage';
 
 var USENATIVEDRIVER = false;
 
@@ -50,6 +47,15 @@ const styles = StyleSheet.create({
       zIndex: 200,
     },
   });
+
+var ALL_SCALE_GROUPS = {
+    /*
+    "2": {
+        "353301": "SpaceBuzz",
+        "353435": "SpaceBuzz"
+    }
+    */
+}
 
 var NODES = {
     "A": { lat: 33.810561, long: -117.918975, links: [ "Z00", "Z01", "I" ] },
@@ -294,13 +300,15 @@ export default class ResortMap extends Component {
         super(props);
         this.HIGHEST_SCALE = 4;
         this.HIGHEST_SCALE_COUNT = 11;
-        this.markerRadius = 50;
+        this.markerRadius = 15;
 
         this.initScalePan();
         this.state = {
             latitude: null,
             longitude: null,
-            lines: []
+            lines: [],
+            selectedAttractionID: null,
+            selectedGroupID: null
         }
     }
 
@@ -619,6 +627,55 @@ export default class ResortMap extends Component {
         </View>
     }
 
+    renderAttractions = (scale) => {
+        var markers = [];
+        var scaleStr = Math.trunc(scale).toString();
+        var scaleGroups = ALL_SCALE_GROUPS[scaleStr];
+        var groups = {};
+        for (var attraction of this.props.attractions) {
+            var coords = this.toPixels(attraction.latitude, attraction.longitude);
+            if (scaleGroups != null && scaleGroups[attraction.id] != null) {
+                var groupID = scaleGroups[attraction.id];
+                if (groups[groupID] == null) {
+                    groups[groupID] = {
+                        x: 0,
+                        y: 0,
+                        attractions: []
+                    };
+                }
+                var group = groups[groupID];
+                group.y = group.y * (group.attractions.length / (group.attractions.length + 1)) + 
+                    coords.y * (1 / (group.attractions.length + 1));
+                group.x = group.x * (group.attractions.length / (group.attractions.length + 1)) + 
+                    coords.x * (1 / (group.attractions.length + 1));
+                group.attractions.push(attraction);
+            } else {
+                if (attraction.id != this.state.selectedAttractionID) {
+                    markers.push(this.props.renderAttractionMarker(attraction, coords.x, coords.y));
+                } else {
+                    makers.push(this.props.renderFocusedAttraction(attraction, coords.x, coords.y));
+                }
+            }
+        }
+        for (var groupID in groups) {
+            var group = groups[groupID];
+            if (group.attractions.length == 1) {
+                if (attraction.id != this.state.selectedAttractionID) {
+                    markers.push(this.props.renderAttractionMarker(group.attractions[0], group.x, group.y));
+                } else {
+                    markers.push(this.props.renderFocusedAttraction(group.attractions[0], group.x, group.y));
+                }
+            } else {
+                if (groupID != this.state.selectedGroupID) {
+                    markers.push(this.props.renderGroupMarker(group.attractions, group.x, group.y));
+                } else {
+                    markers.push(this.props.renderFocusedGroup(group.attractions, group.x, group.y));
+                }
+            }
+        }
+        return markers;
+    }
+
     renderMap = () => {
         var nav = this.renderNav();
 
@@ -683,25 +740,26 @@ export default class ResortMap extends Component {
                     key={"userMarker"}
                     style={{
                         position: 'absolute',
-                        left: userPixelPos.x,
-                        top: userPixelPos.y,
+                        left: userPixelPos.x - this.markerRadius,
+                        top: userPixelPos.y - this.markerRadius,
                         width: this.markerRadius * 2,
                         height: this.markerRadius * 2,
-                        
-                        backgroundColor: 'red'
+                        borderRadius: this.markerRadius,
+                        backgroundColor: 'blue'
                     }}/>
             }
         }
         return (
-                <View style={{
-                    width: this.totalW,
-                    height: this.totalH,
-                    backgroundColor: 'blue'
-                }}>
-                    { nav }
-                    { images }
-                    { userMarker }
-                </View>
+            <View style={{
+                width: this.totalW,
+                height: this.totalH,
+                backgroundColor: 'blue'
+            }}>
+                { nav }
+                { images }
+                { userMarker }
+                { this.renderAttractions(scale) }
+            </View>
         );
     }
 }
