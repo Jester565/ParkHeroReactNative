@@ -90,6 +90,10 @@ dependencies {
     compile 'com.android.support:multidex:1.0.3'
     implementation 'com.google.firebase:firebase-core:16.0.7'
     implementation 'com.crashlytics.sdk.android:crashlytics:2.9.9'
+    implementation('com.amazonaws:aws-android-sdk-core:2.6.+')
+    implementation('com.amazonaws:aws-android-sdk-cognitoidentityprovider:2.6.+')
+    implementation('com.amazonaws:aws-android-sdk-sns:2.6.+')
+    implementation('com.amazonaws:aws-android-sdk-s3:2.6.+')
     implementation project(':react-native-camera')
     implementation project(':react-native-image-crop-picker')
     implementation project(':react-native-push-notification')

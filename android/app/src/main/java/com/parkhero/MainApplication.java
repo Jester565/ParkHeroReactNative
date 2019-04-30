@@ -3,6 +3,8 @@ package com.parkhero;
 import android.app.Application;
 
 import com.facebook.react.ReactApplication;
+import com.github.yamill.orientation.OrientationPackage;
+import com.rnimmersive.RNImmersivePackage;
 import org.reactnative.camera.RNCameraPackage;
 import com.reactnative.ivpusic.imagepicker.PickerPackage;
 import com.dieam.reactnativepushnotification.ReactNativePushNotificationPackage;
@@ -24,6 +26,7 @@ import com.facebook.react.bridge.ReadableNativeMap;
 
 import java.util.Arrays;
 import java.util.List;
+import com.parkhero.ParkHeadlessPackage;
 
 public class MainApplication extends Application implements ReactApplication {
 
@@ -37,6 +40,8 @@ public class MainApplication extends Application implements ReactApplication {
     protected List<ReactPackage> getPackages() {
       return Arrays.<ReactPackage>asList(
           new MainReactPackage(),
+            new OrientationPackage(),
+            new RNImmersivePackage(),
             new RNCameraPackage(),
             new PickerPackage(),
             new ReactNativePushNotificationPackage(),
@@ -48,7 +53,8 @@ public class MainApplication extends Application implements ReactApplication {
             new RNGestureHandlerPackage(),
             new VectorIconsPackage(),
             new FastImageViewPackage(),
-            new MPAndroidChartPackage()
+            new MPAndroidChartPackage(),
+            new ParkHeadlessPackage()
       );
     }
 

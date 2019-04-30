@@ -5,6 +5,7 @@ import * as mutations from './src/graphql/mutations';
 var PushNotification = require('react-native-push-notification');
 import AwsExports from './AwsExports';
 import moment from 'moment';
+import ParkHeadless from './ParkHeadless';
 
 Amplify.configure(AwsExports);
 
@@ -292,6 +293,7 @@ function _handleAppStateChange(nextAppState) {
 */
 
 function init() {
+    ParkHeadless.init();
     try {
         NetInfo.isConnected.fetch().then(isConnected => {
             try {
@@ -400,10 +402,15 @@ function silentSignIn() {
                 }
             }
             if (expireTime != null) {
-                console.log("LOGIN REFRESH: ", expireTime - Date.now());
                 _expireTime = expireTime;
                 _refreshTimeout = setTimeout(_refreshLogin, expireTime - Date.now());
             }
+
+            var updateParkHeadless = async () => {
+                var currentCreds = await Auth.currentCredentials();
+                ParkHeadless.updateCredentials(currentCreds.accessKeyId, currentCreds.secretAccessKey, currentCreds.sessionToken);
+            }
+            updateParkHeadless();
         } catch (ex) { 
             console.log("SIGN IN FAIL: ", ex);
             for (var subKey in _subscriptions) {

@@ -6,11 +6,13 @@ import {
     StyleSheet, 
     Dimensions,
     Slider,
-    TouchableWithoutFeedback } from 'react-native';
+    TouchableWithoutFeedback,
+    AsyncStorage } from 'react-native';
 import { Icon, FormInput } from 'react-native-elements';
 import { RNCamera } from 'react-native-camera';
 import { Immersive } from 'react-native-immersive';
 import * as Animatable from 'react-native-animatable';
+import ParkHeadless from '../../ParkHeadless';
 
 const flashModeOrder = {
     auto: 'off',
@@ -47,7 +49,7 @@ export default class Camera extends React.Component {
             recordOptions: {
                 mute: false,
                 maxDuration: 960,
-                quality: RNCamera.Constants.VideoQuality['480p'],
+                quality: RNCamera.Constants.VideoQuality['720p'],
             },
             isRecording: false,
             immersive: false,
@@ -158,8 +160,12 @@ export default class Camera extends React.Component {
     
     takePicture = async () => {
         if (this.camera) {
+            var photoID = uuid.v4();
             const data = await this.camera.takePictureAsync();
-            console.warn('takePicture ', data);
+            var signInInfo = JSON.parse(await AsyncStorage.getItem('signIn'));
+            var user = signInInfo.user;
+        
+            ParkHeadless.uploadFile(`pics/${user.id}/${photoID}${data.uri.substr(data.uri.lastIndexOf('.'))}`, data.uri);
         }
     };
     
@@ -167,13 +173,16 @@ export default class Camera extends React.Component {
         if (this.camera) {
             try {
                 const promise = this.camera.recordAsync(this.state.recordOptions);
-
+                
                 if (promise) {
+                    var videoID = (new Date).getTime().toString();
                     this.recordCamera = this.camera;
                     this.setState({ isRecording: true });
                     const data = await promise;
+                    var signInInfo = JSON.parse(await AsyncStorage.getItem('signIn'));
+                    var user = signInInfo.user;
+                    ParkHeadless.uploadFile(`vids/${user.id}/${videoID}${data.uri.substr(data.uri.lastIndexOf('.'))}`, data.uri);
                     this.setState({ isRecording: false });
-                    console.warn('takeVideo', data);
                 }
             } catch (e) {
                 console.error(e);
@@ -217,6 +226,7 @@ export default class Camera extends React.Component {
             whiteBalance={this.state.whiteBalance}
             ratio={this.state.ratio}
             focusDepth={this.state.depth}
+            orientation={this.state.portrait? 'portrait': 'landscapeLeft'}
             permissionDialogTitle={'Permission to use camera'}
             permissionDialogMessage={'We need your permission to use your camera phone'}
         >
@@ -238,7 +248,7 @@ export default class Camera extends React.Component {
                             ref="_darkIcon">
                                 <Icon
                                 raised
-                                color='#333333'
+                                color='#151515'
                                 containerStyle={{
                                     backgroundColor: '#111111'
                                 }}
@@ -350,7 +360,7 @@ export default class Camera extends React.Component {
                     top: 0
                 }}>
                     <Icon
-                    color={(this.state.immersive)? '#333333': (!this.state.isRecording)? '#FFFFFF': 'black'}
+                    color={(this.state.immersive)? '#151515': (!this.state.isRecording)? '#FFFFFF': 'black'}
                     disabled={this.state.isRecording && !this.state.immersive}
                     name={'close'}
                     size={iconSize}
