@@ -23,6 +23,7 @@ import com.dylanvann.fastimage.FastImageViewPackage;
 import com.github.wuxudong.rncharts.MPAndroidChartPackage;
 import com.facebook.react.bridge.ReadableNativeArray;
 import com.facebook.react.bridge.ReadableNativeMap;
+import com.corbt.keepawake.KCKeepAwakePackage;
 
 import java.util.Arrays;
 import java.util.List;
@@ -54,7 +55,8 @@ public class MainApplication extends Application implements ReactApplication {
             new VectorIconsPackage(),
             new FastImageViewPackage(),
             new MPAndroidChartPackage(),
-            new ParkHeadlessPackage()
+            new ParkHeadlessPackage(),
+            new KCKeepAwakePackage()
       );
     }
 

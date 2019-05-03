@@ -7,12 +7,14 @@ import {
     Dimensions,
     Slider,
     TouchableWithoutFeedback,
-    AsyncStorage } from 'react-native';
+    AsyncStorage,
+    PermissionsAndroid } from 'react-native';
 import { Icon, FormInput } from 'react-native-elements';
 import { RNCamera } from 'react-native-camera';
 import { Immersive } from 'react-native-immersive';
 import * as Animatable from 'react-native-animatable';
 import ParkHeadless from '../../ParkHeadless';
+import KeepAwake from 'react-native-keep-awake';
 
 const flashModeOrder = {
     auto: 'off',
@@ -49,7 +51,8 @@ export default class Camera extends React.Component {
             recordOptions: {
                 mute: false,
                 maxDuration: 960,
-                quality: RNCamera.Constants.VideoQuality['720p'],
+                quality: RNCamera.Constants.VideoQuality['480p'],
+                targetBitrate: 1000*1000*4 //4Mbps bitrate
             },
             isRecording: false,
             immersive: false,
@@ -60,6 +63,26 @@ export default class Camera extends React.Component {
     componentWillMount() {
         Immersive.on();
         Immersive.setImmersive(true);
+        try {
+            const granted = await PermissionsAndroid.request(
+              PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
+              {
+                title: 'Write Media To External Storage',
+                message:
+                  'Just give me it',
+                buttonNeutral: 'Ask Me Later',
+                buttonNegative: 'Cancel',
+                buttonPositive: 'OK'
+              },
+            );
+            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
+              console.log('You can use the storage');
+            } else {
+              console.log('Storage permission denied');
+            }
+          } catch (err) {
+            console.warn(err);
+          }
     }
 
     componentWillUnmount() {
@@ -175,17 +198,22 @@ export default class Camera extends React.Component {
                 const promise = this.camera.recordAsync(this.state.recordOptions);
                 
                 if (promise) {
+                    KeepAwake.activate();
                     var videoID = (new Date).getTime().toString();
+                    ParkHeadless.startRideRec();
                     this.recordCamera = this.camera;
                     this.setState({ isRecording: true });
                     const data = await promise;
                     var signInInfo = JSON.parse(await AsyncStorage.getItem('signIn'));
                     var user = signInInfo.user;
+                    ParkHeadless.uploadRideRec(`${videoID}.json`, user.id);
                     ParkHeadless.uploadFile(`vids/${user.id}/${videoID}${data.uri.substr(data.uri.lastIndexOf('.'))}`, data.uri);
                     this.setState({ isRecording: false });
+                    KeepAwake.deactivate();
                 }
             } catch (e) {
                 console.error(e);
+                KeepAwake.deactivate();
             }
         }
     };
@@ -243,21 +271,7 @@ export default class Camera extends React.Component {
                             left: 0,
                             top: 0
                         }}
-                        activeOpacity={0.6}>
-                            <Animatable.View
-                            ref="_darkIcon">
-                                <Icon
-                                raised
-                                color='#151515'
-                                containerStyle={{
-                                    backgroundColor: '#111111'
-                                }}
-                                name={(this.state.isRecording)? 'stop': 'fiber-manual-record'}
-                                onPress={(this.state.isRecording)? this.stopVideo: this.takeVideo}
-                                size={80}
-                                />
-                            </Animatable.View>
-                        </TouchableOpacity>): (
+                        activeOpacity={0.6} />): (
                             <View style={{
                                 flex: 1
                             }}>

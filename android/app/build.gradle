@@ -1,5 +1,12 @@
 apply plugin: "com.android.application"
 apply plugin: 'io.fabric'
+apply plugin: "kotlin-android"
+apply plugin: "kotlin-android-extensions"
+apply plugin: 'com.google.protobuf'
+
+sourceSets {
+    main.java.srcDirs += "${protobuf.generatedFilesBaseDir}/main/javalite"
+}
 
 import com.android.build.OutputFile
 
@@ -78,6 +85,27 @@ android {
     }
 }
 
+protobuf {
+    protoc {
+        artifact = "com.google.protobuf:protoc:3.0.0"
+    }
+    plugins {
+        lite {
+            artifact = "com.google.protobuf:protoc-gen-javalite:3.0.0"
+        }
+    }
+    generateProtoTasks {
+        all().each { task ->
+            task.builtins {
+                remove java
+            }
+            task.plugins {
+                lite {}
+            }
+        }
+    }
+}
+
 configurations.all {
     resolutionStrategy { 
         force 'com.google.android.gms:play-services-basement:16.1.0'
@@ -85,6 +113,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
     compile project(':react-native-orientation')
     compile project(':react-native-immersive')
     compile 'com.android.support:multidex:1.0.3'
@@ -111,6 +140,8 @@ dependencies {
     implementation(project(":react-native-google-signin"))
     implementation project(':react-native-fast-image')
     implementation project(':react-native-charts-wrapper')
+    implementation 'com.google.protobuf:protobuf-lite:3.0.1'
+    compile project(':react-native-keep-awake')
 }
 
 

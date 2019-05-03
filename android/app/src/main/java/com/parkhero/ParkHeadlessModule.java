@@ -28,59 +28,13 @@ import java.io.File;
 import java.util.List;
 import java.net.URI;
 import java.net.URISyntaxException;
+import android.content.Intent;
+import android.os.Build;
+
 
 public class ParkHeadlessModule extends ReactContextBaseJavaModule {
-  class ReactCredentials implements AWSSessionCredentials {
-    private String sessionToken;
-    private String accessKey;
-    private String secretKey;
-
-    public ReactCredentials(String sessionToken, String accessKey, String secretKey) {
-      this.sessionToken = sessionToken;
-      this.accessKey = accessKey;
-      this.secretKey = secretKey;
-    }
-
-    @Override
-    public String getSessionToken() {
-      return sessionToken;
-    }
-
-    @Override
-    public String getAWSAccessKeyId() {
-      return accessKey;
-    }
-
-    @Override
-    public String getAWSSecretKey() {
-      return secretKey;
-    }
-  }
-
-  class ReactCredentialsProvider implements AWSCredentialsProvider {
-    ReactCredentials credentials;
-
-    public ReactCredentialsProvider(ReactCredentials credentials) {
-      this.credentials = credentials;
-    }
-
-    @Override
-    public AWSCredentials getCredentials() {
-      return credentials;
-    }
-
-    public void setCredentials(ReactCredentials credentials) {
-      this.credentials = credentials;
-    }
-
-    @Override
-    public void refresh() {
-      Log.d("PARKHEADLESS", "REFRESH CREDS CALLED");
-    }
-  }
-
   private ReactApplicationContext reactContext;
-  private ReactCredentialsProvider credentialsProvider;
+  private AwsSessionCredentialProvider credentialsProvider;
   private TransferUtility transferUtility;
 
   public ParkHeadlessModule(ReactApplicationContext reactContext) {
@@ -95,14 +49,14 @@ public class ParkHeadlessModule extends ReactContextBaseJavaModule {
 
   @ReactMethod
   public void init() {
-    this.credentialsProvider = new ReactCredentialsProvider(null);
+    this.credentialsProvider = new AwsSessionCredentialProvider(null);
     AmazonS3Client s3Client = new AmazonS3Client(this.credentialsProvider);
     this.transferUtility = TransferUtility.builder().context(this.reactContext.getApplicationContext()).s3Client(s3Client).defaultBucket("disneyapp3").build();
   }
 
   @ReactMethod
   public void updateCredentials(final String accessKey, final String secretKey, final String sessionToken) {
-    this.credentialsProvider.setCredentials(new ReactCredentials(sessionToken, accessKey, secretKey));
+    this.credentialsProvider.setCredentials(new AwsSessionCredentials(sessionToken, accessKey, secretKey));
 
     List<TransferObserver> observers = this.transferUtility.getTransfersWithType(TransferType.UPLOAD);
     for (TransferObserver observer : observers) {
@@ -140,5 +94,30 @@ public class ParkHeadlessModule extends ReactContextBaseJavaModule {
       e.printStackTrace();
     }
     return null;
+  }
+
+  @ReactMethod
+  public void startRideRec() {
+    Intent serviceIntent = new Intent(this.reactContext.getApplicationContext(), RideRecService.class);
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      this.reactContext.getApplicationContext().startForegroundService(serviceIntent);
+    } else {
+      this.reactContext.getApplicationContext().startService(serviceIntent);
+    }
+  }
+
+  @ReactMethod
+  public void uploadRideRec(String fileName, String userID) {
+    Intent intent = new Intent();
+    intent.setAction(RideRecService.UPLOAD_ACTION);
+    intent.putExtra("fileName", fileName);
+    intent.putExtra("userID", userID);
+    AWSSessionCredentials credentials = this.credentialsProvider.getSessionCredentials();
+    if (credentials != null) {
+      intent.putExtra("accessKey", credentials.getAWSAccessKeyId());
+      intent.putExtra("secretKey", credentials.getAWSSecretKey());
+      intent.putExtra("sessionToken", credentials.getSessionToken());
+    }
+    this.reactContext.getApplicationContext().sendBroadcast(intent);
   }
 }
