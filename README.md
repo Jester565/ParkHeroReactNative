@@ -6,7 +6,9 @@ Ride and event information are automatically kept up-to-date, customizable, and 
 
 ### Ride List
 The ride list shows <b>real-time</b> ride status, wait times, and FastPass times.
-<br/><br/>
+<br/>
+![A list of rides](/rdme/multiRides1.png)
+<br/>
 Each ride has a color (red for bad, green for good) to represent its <b>wait rating</b> that compares the current wait time to the smart average.  The <b>smart average</b> is the predicted wait time of the ride at a certain time and is generated using a <i>deep neural network</i> whose model is trained with 2 years of previous wait times, FastPass times, weather, blackout, day of week, day of year, etc.
 <br/><br/>
 Custom <b>filters</b> can contain multiple rides selected by the user.  Multiple filters can be applied to hide rides.
@@ -15,7 +17,9 @@ Custom <b>filters</b> can contain multiple rides selected by the user.  Multiple
 
 ### Ride
 When a ride is selected from the list, you can view more information and <b>customize</b> it.
-<br/><br/>
+<br/>
+![A ride](/rdme/ride.png)
+<br/>
 Users can add multiple of their <b>own pictures</b> to a ride and select a thumbnail (the image shown in the list).  The ride name can also be changed.  Note that all changes the user makes here are backed up and are consistent throughout the entire app.
 <br/><br/>
 Graphs display the rides previous wait times, smart averages, FastPass times, and predicted FastPass times.  This allows the user to make a more informed decision than by solely looking at the wait rating.
@@ -23,14 +27,21 @@ Graphs display the rides previous wait times, smart averages, FastPass times, an
 ### Time Machine
 Previous and <b>predicted ride information</b> can be accessed with the time machine.  Here, you can use a slider or a time picker to <b>select a date</b> and time to view information on.
 <br/>
+![A ride list with predicted times](/rdme/preds.png)
 <br/>
 <b>Weather, blackouts, and park schedules</b> will also be shown for the selected time.
 <br/>
 <br/>
 In the time picker, black outs and park hours can be easily accessed.
+<br/>
+![A calendar with blackout dates and park hours](/rdme/scheds.png)
+<br/>
 
 ### Events
 Along with the ride times, events are customizable and contain <b>event times</b>.
+<br />
+![A list of events containing event times](/rdme/events.png)
+<br />
 
 # Users
 Although the Disney official app has accounts, users are never able to communicate with eachother.  Instead, its an unecessary barrier to start using features such as MaxPass.  ParkHero accounts are used to <b>connect</b> with others, backup more cutomization, and don't require any information from the user (you never even have to login to a Disney account!).
@@ -39,12 +50,18 @@ Although the Disney official app has accounts, users are never able to communica
 
 ### Profile
 Users can modify their <b>profiles</b> to have their own names and profile pictures that are <b>checked for inappropiate content</b>.
-
+<br />
+![User profile picture and name](/rdme/profile.png)
+<br />
 ### Passes
 Park passes can easily be added by <b>scanning the pass code</b> with your Camera.  If a pass code is valid, the pass type, expiration date, and name is aquired.
 <br/>
+![Passes are added with the camera](/rdme/addPass.png)
 <br/>
 A pass list allows you to easily scan into the FastPass line.
+<br />
+![Passes are added with the camera](/rdme/passes.png)
+<br />
 
 ### Parties
 However, you don't have to remove and add passes everytime you go to the park with different people.  Instead, other <b>users can join your party</b> if you invite them.  Within a party, you can <b>share passes</b> and press a button to <b>split the passes between phones</b> so you can scan into the FastPass line faster.
@@ -55,6 +72,7 @@ MaxPass is a service offered by Disney where users can order FastPasses from the
 <br />
 MaxPass+ enables parties to <b>queue up the FastPasses they want to order</b>.  When the selection time arrives, the FastPass will automatically be ordered, the user will be <b>notified</b>, and the next order will be prepped.  The priority of you FastPass orders can also be specified and a <i>dependency tree</i> will be created to provide <b>predicted FastPass & selection time</b>.
 <br />
+![MaxPass+ Order Process](/rdme/fpProcess.png)
 <br />
 If you don't have a MaxPass, ParkHero can still send notifications to <b>remind you when you can order your next FastPass</b>.
 
@@ -64,8 +82,10 @@ In Disney World, magic bands are given to each guest so an RFID signal is emitte
 <br />
 Ride Recognition uses <b>acceleration</b> to identity exactly which and what part of the ride a guest is on.  This information is then used to edit any videos taken by the guest during this time with <i>FFmpeg</i>.  Below you can see the first Ride Recognition Edit test.
 <br />
+[![YouTube Thumbnail](/rdme/ytIcon.png)](https://www.youtube.com/watch?v=1GXFSrb2WSc)
 <br />
 Creating Ride Recognition Edits is relatively simple. A JSON editing recipe is provided that points to video clips and music and easily mixes it in with video of the user riding.  Later on, I hope to provide a more robust edit creation and sharing system.
 
 # WIP
 The map is still a work in progress.  Currently, I've written a view to handle the massive image.  However, user location and rides must still be shown.
+![Disneyland Map](/rdme/map.png)
