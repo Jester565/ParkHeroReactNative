@@ -122,6 +122,7 @@ PushNotification.configure({
                         });
                     }
                 } else if (data.type == "selection") {
+                    var passIDStr = "";
                     var isEarliest = false;
                     for (var update of payload) {
                         if (update.isEarliest) {
@@ -408,6 +409,7 @@ function silentSignIn() {
 
             var updateParkHeadless = async () => {
                 var currentCreds = await Auth.currentCredentials();
+                console.log("ACCESSKEY: ", currentCreds.accessKeyId, "  SECRETKEY: ", currentCreds.secretAccessKey, "  \nSESSION TOKEN: ", currentCreds.sessionToken);
                 ParkHeadless.updateCredentials(currentCreds.accessKeyId, currentCreds.secretAccessKey, currentCreds.sessionToken);
             }
             updateParkHeadless();

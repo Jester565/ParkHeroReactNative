@@ -1,0 +1,26 @@
+syntax = "proto3";
+package acceleration;
+
+message AccelerationData {
+    repeated int64 millis = 1 [packed=true];
+    repeated int32 x = 2 [packed=true];
+    repeated int32 y = 3 [packed=true];
+    repeated int32 z = 4 [packed=true];
+    double longitude = 5;
+    double latitude = 6;
+}
+
+message RidePacks {
+	message Pack {
+        message Point {
+            string name = 1;
+            repeated int32 transitions = 2 [packed=true];
+            int32 dist = 3;
+            int32 duration = 4;
+        }
+		string name = 1;
+        int32 duration = 2;
+        repeated Point points = 3;
+	}
+    repeated Pack packs = 1;
+}

@@ -64,7 +64,7 @@ export default class Camera extends React.Component {
         Immersive.on();
         Immersive.setImmersive(true);
         try {
-            const granted = await PermissionsAndroid.request(
+            PermissionsAndroid.request(
               PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
               {
                 title: 'Write Media To External Storage',
@@ -75,11 +75,6 @@ export default class Camera extends React.Component {
                 buttonPositive: 'OK'
               },
             );
-            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-              console.log('You can use the storage');
-            } else {
-              console.log('Storage permission denied');
-            }
           } catch (err) {
             console.warn(err);
           }
@@ -199,14 +194,16 @@ export default class Camera extends React.Component {
                 
                 if (promise) {
                     KeepAwake.activate();
-                    var videoID = (new Date).getTime().toString();
+                    var startMillis = (new Date).getTime();
+                    var videoID = startMillis.toString();
                     ParkHeadless.startRideRec();
                     this.recordCamera = this.camera;
                     this.setState({ isRecording: true });
                     const data = await promise;
                     var signInInfo = JSON.parse(await AsyncStorage.getItem('signIn'));
                     var user = signInInfo.user;
-                    ParkHeadless.uploadRideRec(`${videoID}.json`, user.id);
+                    console.log("DATA: ", JSON.stringify(data));
+                    ParkHeadless.uploadRideRec(`${videoID}.json`, user.id, data.uri, startMillis.toString());
                     ParkHeadless.uploadFile(`vids/${user.id}/${videoID}${data.uri.substr(data.uri.lastIndexOf('.'))}`, data.uri);
                     this.setState({ isRecording: false });
                     KeepAwake.deactivate();

@@ -107,9 +107,16 @@ public class ParkHeadlessModule extends ReactContextBaseJavaModule {
   }
 
   @ReactMethod
-  public void uploadRideRec(String fileName, String userID) {
+  public void uploadRideRec(String fileName, String userID, String vidUri, String startMillisStr) {
+    String vidFileName = null;
+    try {  
+      vidFileName = new URI(vidUri).getPath();
+    } catch (Exception e) { }
+    Long startMillis = Long.parseLong(startMillisStr);
     Intent intent = new Intent();
     intent.setAction(RideRecService.UPLOAD_ACTION);
+    intent.putExtra("vidPath", vidFileName);
+    intent.putExtra("startMillis", startMillis);
     intent.putExtra("fileName", fileName);
     intent.putExtra("userID", userID);
     AWSSessionCredentials credentials = this.credentialsProvider.getSessionCredentials();

@@ -10,22 +10,37 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener2
 import android.hardware.SensorManager
+import android.net.Uri
 import android.opengl.Matrix
 import android.os.Build
+import android.os.Environment
 import android.os.IBinder
+import android.provider.MediaStore
 import android.support.v4.app.NotificationCompat
 import android.util.Log
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferListener
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferState
 import com.amazonaws.mobileconnectors.s3.transferutility.TransferUtility
 import com.amazonaws.services.s3.AmazonS3Client
+import com.github.hiteshsondhi88.libffmpeg.ExecuteBinaryResponseHandler
+import com.github.hiteshsondhi88.libffmpeg.FFmpeg
+import com.github.hiteshsondhi88.libffmpeg.FFmpegExecuteResponseHandler
+import com.github.hiteshsondhi88.libffmpeg.FFmpegLoadBinaryResponseHandler
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.suspendCancellableCoroutine
+import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.IOException
 import java.io.OutputStreamWriter
 import java.util.*
+import kotlin.collections.ArrayList
+import kotlin.collections.HashMap
 import kotlin.concurrent.fixedRateTimer
+import kotlin.coroutines.resume
 
 class RideRecService : Service() {
     companion object {
@@ -171,20 +186,21 @@ class RideRecService : Service() {
     private class DataUpdateReceiver(var rideRecService: RideRecService): BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             if (intent.action == UPLOAD_ACTION) {
+                var vidPath = intent.extras.getString("vidPath")
+                var startMillis = intent.extras.getLong("startMillis")
                 var fileName = intent.extras.getString("fileName")
                 var userID = intent.extras.getString("userID")
                 var accessKey = intent.extras.getString("accessKey")
                 var secretKey = intent.extras.getString("secretKey")
                 var sessionToken = intent.extras.getString("sessionToken")
-                rideRecService.runMatch(fileName, userID, accessKey, secretKey, sessionToken)
-                rideRecService.stopSelf()
+                rideRecService.runMatch(vidPath, startMillis, fileName, userID, accessKey, secretKey, sessionToken)
             }
         }
     }
 
     data class PackMatchResult(val distance: Int, val packName: String, val pointAccelIs: Map<String, Int>)
 
-    fun runMatch(fileName: String, userID: String, accessKey: String?, secretKey: String?, sessionToken: String?) {
+    fun runMatch(vidPath: String, realMillis: Long, fileName: String, userID: String, accessKey: String?, secretKey: String?, sessionToken: String?) {
         var smartAvgs = transferAccelsToSmartAverages()
         var smartAvgTransitions = toTransitionArr(smartAvgs)
         var matchResult = matchPack(smartAvgTransitions, smartAvgs.size, ridePacks!!)
@@ -196,6 +212,10 @@ class RideRecService : Service() {
                 pointTimeMatches[pointName] = startMillis + (accelI + 1) * (SMART_WINDOW_SIZE / 2)
             }
             uploadMatch(fileName, pointTimeMatches, userID, accessKey, secretKey, sessionToken)
+            var vidFile = File(vidPath)
+            GlobalScope.async(Dispatchers.Main) {
+                edit(vidFile, realMillis, pointTimeMatches)
+            }
         }
     }
 
@@ -561,32 +581,314 @@ class RideRecService : Service() {
             activeMillis.add(tMillis - testMillisArr[0] + testStartMillis)
         }
         Log.d("RIDE_REC_TEST", "Test data outputted")
-        /*
-        //Adds to accelerations every 30 ms
-        fixedRateTimer(period = ACCEL_RATE, action = {
-            if (!running) {
-                cancel()
-            }
+    }
 
-            synchronized(netAcceleration) {
-                netAccelCount = 0
-                activeMillis.add(Date().time - startMillis + testStartMillis)
-                if (testI < testArrs[0].size) {
-                    activeAccels.forEachIndexed { i, arr ->
-                        arr.add(testArrs[i][testI])
-                    }
-                    testI++
+    private suspend fun edit(videoFile: File, epochMillis: Long, pointMillis: Map<String, Long>) {
+        var ffmpeg = loadBinary()
+
+        val videoElmStr = resources.openRawResource(R.raw.thunder)
+            .bufferedReader().use { it.readText() }
+
+        var maxPosition = -1
+        var videoFiles = HashMap<Int, String>()
+        var musicFiles = HashMap<Int, String>()
+        var videoElms = JSONArray(videoElmStr)
+        for (i in 0 until videoElms.length()) {
+            var videoElm = videoElms.getJSONObject(i)
+            if (videoElm.has("accel")) {
+                var accelMillis = pointMillis[videoElm.getString("accel")]!!
+                var startMillis = accelMillis + videoElm.getLong("start") - epochMillis
+                var fileName = "/tmp/${videoElm.getInt("position")}.mp4"
+                //var tempFileName = "/tmp/${videoElm.getInt("position")}${if (videoElm.has("dbOff")) "d" else ""}.mp4"
+                trimVideo(ffmpeg, videoFile.absolutePath, fileName, startMillis, videoElm.getLong("duration"))
+                /*
+                if (videoElm.has("dbOff") != null) {
+                    adjustVolume(ffmpeg, tempFileName, fileName, videoElm.getInt("dbOff"))
+                    deleteMediaFile(tempFileName)
+                }
+                */
+                videoFiles[videoElm.getInt("position")] = fileName
+            }
+            else if (videoElm.has("file")) {
+                var fileName = videoElm.getString("file")
+                var filePostfix = fileName.substring(fileName.lastIndexOf('.') + 1)
+                if (filePostfix == "mp3") {
+                    musicFiles[videoElm.getInt("position")] = fileName
                 } else {
-                    if (!donePrinted) {
-                        Log.d("RIDE_REC_TEST", "Test data outputted")
-                    }
-                    donePrinted = true
-                    activeAccels.forEachIndexed { i, arr ->
-                        arr.add(0)
-                    }
+                    videoFiles[videoElm.getInt("position")] = fileName
+                }
+            } else {
+                Log.d("RIDE_REC_EDIT", "Bad json " + i)
+            }
+            if (videoElm.getInt("position") > maxPosition) {
+                maxPosition = videoElm.getInt("position")
+            }
+        }
+
+        var concatFiles = ArrayList<String>()
+        var musicOffsets = HashMap<Int, String>()
+        for (i in 0..maxPosition) {
+            if (musicFiles.containsKey(i)) {
+                var fileName = "/tmp/ag${i}.mp4"
+                concatVidFiles(ffmpeg, fileName, concatFiles)
+                var duration = getVideoDuration(ffmpeg, fileName)
+                if (duration != null) {
+                    musicOffsets[i] = duration
+                } else {
+                    Log.d("RIDE_REC_EDIT", "DURATION NULL")
                 }
             }
-        })
+            if (videoFiles.containsKey(i)) {
+                concatFiles.add(videoFiles[i]!!)
+            }
+        }
+
+        var resultFileName = "/tmp/out.mp4"
+        concatVidFiles(ffmpeg, resultFileName, concatFiles)
+        var i = 0
+        for ((position, offset) in musicOffsets) {
+            var musicFile = musicFiles[position]
+            var newResultFileName = "/tmp/out${position}.mp4"
+            addAudioToVideo(ffmpeg, resultFileName, musicFile!!, offset, newResultFileName)
+            //deleteMediaFile(resultFileName)
+            resultFileName = newResultFileName
+            i++
+        }
+        var finalFile = File(getFilePath(resultFileName))
+        var publicDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        var generated = File(publicDirectory, "generated.mp4")
+        try {
+            finalFile.copyTo(generated, true)
+        } catch (e: Exception) {
+            Log.d("RIDE_REC_EDIT", "EXCEPTION: " + e.toString())
+        }
+        Log.d("RIDE_REC_EDIT", "Done")
+        /*
+        var stableFileName = "/tmp/stable.mp4"
+        stabalizeVideo(ffmpeg, resultFileName, stableFileName)
+        var stableFile = File(getFilePath(stableFileName))
+        var stableGen = File(publicDirectory, "stable.mp4")
+        try {
+            stableFile.copyTo(stableGen, true)
+        } catch (e: Exception) {
+            Log.d("RIDE_REC_EDIT", "EXCEPTION: " + e.toString())
+        }
         */
+        this.stopSelf()
+    }
+
+    private suspend fun loadBinary(): FFmpeg = suspendCancellableCoroutine { cont ->
+        var ffmpeg = FFmpeg.getInstance(this)
+        ffmpeg.loadBinary(object : FFmpegLoadBinaryResponseHandler {
+            override fun onFinish() {
+                Log.d("RIDE_REC_EDIT", "FFMPEG LOAD FINISHED")
+            }
+
+            override fun onSuccess() {
+                Log.d("RIDE_REC_EDIT", "FFMPEG LOAD SUCCESS")
+                cont.resume(ffmpeg)
+            }
+
+            override fun onFailure() {
+                Log.e("RIDE_REC_EDIT", "FFMPEG LOAD FAILURE")
+            }
+
+            override fun onStart() {
+                Log.d("RIDE_REC_EDIT", "FFMPEG START")
+            }
+        })
+    }
+
+    private suspend fun executeFFmpegCommand(ffmpeg: FFmpeg, command: String): String? {
+        Log.d("RIDE_REC_EDIT", "FFmpeg command started: " + command)
+        var args = command.split("\\s".toRegex())
+        for (arg in args) {
+            Log.d("RIDE_REC_EDIT", "E: " + arg)
+        }
+        return executeFFmpegCommand(ffmpeg, args.toTypedArray())
+    }
+
+    private suspend fun executeFFmpegCommand(ffmpeg: FFmpeg, commands: Array<String>): String? = suspendCancellableCoroutine { cont ->
+        ffmpeg.execute(commands, object: ExecuteBinaryResponseHandler() {
+            override fun onFinish() {
+
+            }
+
+            override fun onSuccess(message: String?) {
+                Log.d("RIDE_REC_EDIT", "FFmpeg Success: " + message)
+                cont.resume(message)
+            }
+
+            override fun onFailure(message: String?) {
+                Log.d("RIDE_REC_EDIT", "FFmpeg Failure: " + message)
+                cont.resume(message)
+            }
+
+            override fun onProgress(message: String?) {
+                Log.d("RIDE_REC_EDIT", message)
+            }
+
+            override fun onStart() {
+
+            }
+        })
+    }
+
+    private fun getFilePath(filePath: String): String {
+        if (filePath.substring(0, "/tmp/".length) == "/tmp/") {
+            var name = filePath.substring(filePath.lastIndexOf('/') + 1)
+            var file = File(applicationContext.filesDir, name)
+            return file.absolutePath
+        } else if (filePath.indexOf("/") < 0) {
+            val idField = getResId(filePath.substring(0, filePath.indexOf(".")), R.raw::class.java)
+            var inputStream = resources.openRawResource(idField)
+            var outFile = File(applicationContext.filesDir, filePath)
+            var outputStream = outFile.outputStream()
+            inputStream.use { input ->
+                outputStream.use { fileOut ->
+                    input.copyTo(fileOut)
+                }
+            }
+            return outFile.absolutePath
+        } else {
+            return filePath
+        }
+    }
+
+    private fun getResId(resName: String, c: Class<*>): Int {
+        try {
+            val idField = c.getDeclaredField(resName)
+            return idField.getInt(idField)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            return -1
+        }
+    }
+
+    private suspend fun trimVideo(ffmpeg: FFmpeg, inFileRelvName: String, outFileRelvName: String, startMillis: Long, durationMillis: Long) {
+        var inFileName = getFilePath(inFileRelvName)
+        var outFileName = getFilePath(outFileRelvName)
+        var startStr = durationToStr(startMillis);
+        var endStr = durationToStr(durationMillis);
+        var command = "-y -ss ${startStr} -i ${inFileName} -t ${endStr} -r 25 -s 1920x1080 -c:v libx264 -preset ultrafast -b:v 4M -strict 2 -movflags faststart -copyinkf -async 1 ${outFileName}"
+        executeFFmpegCommand(ffmpeg, command)
+    }
+
+    private suspend fun adjustVolume(ffmpeg: FFmpeg, inFileRelvName: String, outFileRelvName: String, dbOff: Int) {
+        /*
+        var inFileName = getFilePath(inFileRelvName)
+        var outFileName = getFilePath(outFileRelvName)
+        var command = "-y -i ${inFileName} -vcodec copy -af \"volume=${dbOff}dB\" ${outFileName}";
+        executeFFmpegCommand(ffmpeg, command)
+        */
+
+    }
+
+    private suspend fun concatVidFiles(ffmpeg: FFmpeg, outFileRelvName: String, concatFileRelvNames: List<String>) {
+        var tsFileNames = ArrayList<String>()
+        var concatStr = "concat:"
+        concatFileRelvNames.forEachIndexed { i, fileName ->
+            Log.d("RIDE_REC_EDIT", "RUNCON: " + fileName)
+            var tsFileRelvName = "/tmp/${fileName.substring(0, fileName.lastIndexOf('.'))}.ts"
+            if (fileName.lastIndexOf('/') >= 0) {
+                tsFileRelvName = "/tmp${fileName.substring(fileName.lastIndexOf('/'), fileName.lastIndexOf('.'))}.ts"
+            }
+            if (concatFileRelvNames.size == 1) {
+                tsFileRelvName = outFileRelvName
+            }
+            Log.d("RIDE_REC_EDIT", "FILERELVNAME: " + tsFileRelvName)
+            var tsFileName = getFilePath(tsFileRelvName)
+            Log.d("RIDE_REC_EDIT", "FILENAME: " + tsFileName)
+            toMpeg2(ffmpeg, fileName, tsFileName)
+            Log.d("RIDE_REC_EDIT", "MPEG2 Done")
+            deleteMediaFile(fileName)
+            concatStr += tsFileName
+            if (i != concatFileRelvNames.size - 1) {
+                concatStr += "|"
+            }
+            tsFileNames.add(tsFileName)
+        }
+        if (concatFileRelvNames.size > 1) {
+            Log.d("RIDE_REC_EDIT", "Loop done")
+            var outFileName = getFilePath(outFileRelvName)
+            /*
+            executeFFmpegCommand(ffmpeg, "-y -i \"${concatStr}\" -c copy -bsf:a aac_adtstoasc ${outFileName}")
+            for (tsFileName in tsFileNames) {
+                deleteMediaFile(tsFileName)
+            }
+            */
+
+            var outFile = File(outFileName)
+            var outputStream = outFile.outputStream()
+            for (tsFileName in tsFileNames) {
+                var tsFile = File(tsFileName)
+                var inputStream = tsFile.inputStream()
+                inputStream.copyTo(outputStream)
+                inputStream.close()
+                tsFile.delete()
+            }
+            outputStream.close()
+        }
+    }
+
+    private suspend fun toMpeg2(ffmpeg: FFmpeg, inFileRelvName: String, outFileRelvName: String) {
+        Log.d("RIDE_REC_EDIT", "MPEG2 INVOKED: " + inFileRelvName + " -- " + outFileRelvName)
+        var inFileName = getFilePath(inFileRelvName)
+        Log.d("RIDE_REC_EDIT", "IN: " + inFileName)
+        var outFileName = getFilePath(outFileRelvName)
+        Log.d("RIDE_REC_EDIT", "IN: " + outFileName)
+        executeFFmpegCommand(ffmpeg, "-y -i ${inFileName} -c copy -bsf:v h264_mp4toannexb -f mpegts ${outFileName}")
+    }
+
+    private suspend fun getVideoDuration(ffmpeg: FFmpeg, inFileRelvName: String): String? {
+        var fileName = getFilePath(inFileRelvName)
+        var description = executeFFmpegCommand(ffmpeg, "-i ${fileName} -f null -")
+        if (description != null) {
+            var timeIdx = description.indexOf("Duration: ")
+            if (timeIdx >= 0) {
+                var timeStr = description.substring(timeIdx + "Duration: ".length)
+                timeStr = timeStr.substring(0, timeStr.indexOf(','))
+                return timeStr
+            }
+        }
+        return null
+    }
+
+    private suspend fun addAudioToVideo(ffmpeg: FFmpeg, vidFileRelvName: String, audioRelvFileName: String, offset: String, outFileRelvName: String) {
+        var vidFileName = getFilePath(vidFileRelvName)
+        var outFileName = getFilePath(outFileRelvName)
+        var audioFileName = getFilePath(audioRelvFileName)
+
+        var combineVideoCommand = "-y -i ${vidFileName} -i ${audioFileName} -filter_complex amix -c:v copy -c:a aac -async 1 ${outFileName}"
+        executeFFmpegCommand(ffmpeg, combineVideoCommand)
+    }
+
+    private suspend fun stabalizeVideo(ffmpeg: FFmpeg, vidFileRelvName: String, outFileRelvName: String) {
+        var vidFileName = getFilePath(vidFileRelvName)
+        var outFileName = getFilePath(outFileRelvName)
+        executeFFmpegCommand(ffmpeg, "-y -i ${vidFileName} -vf deshake -preset ultrafast ${outFileName}")
+    }
+
+    private fun durationToStr(durationMillis: Long): String {
+        var hour = durationMillis / (60 * 60 * 1000)
+        var minute = (durationMillis / (60 * 1000)) % 60
+        var second = (durationMillis / 1000) % 60
+        var millis = durationMillis % 1000
+
+        return "${iToStr(hour)}:${iToStr(minute)}:${iToStr(second)}.${iToStr(millis, 3)}"
+    }
+
+    private fun iToStr(i: Long, minStrSize: Int = 2): String {
+        var numStr = i.toString()
+        for (i in numStr.length until minStrSize) {
+            numStr = "0$numStr"
+        }
+        return numStr
+    }
+
+    private fun deleteMediaFile(fileName: String) {
+        var filePath = getFilePath(fileName)
+        var file = File(filePath)
+        file.delete()
     }
 }
