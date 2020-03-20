@@ -19,7 +19,7 @@
     "immutability-helper": "^3.0.0",
     "install": "^0.12.2",
     "jaro-winkler": "^0.2.8",
-    "lodash": "^4.17.11",
+    "lodash": "^4.17.13",
     "moment": "^2.22.2",
     "react": "16.6.1",
     "react-native": "0.57.7",
