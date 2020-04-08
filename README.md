@@ -77,7 +77,7 @@ MaxPass+ enables parties to <b>queue up the FastPasses they want to order</b>.  
 If you don't have a MaxPass, ParkHero can still send notifications to <b>remind you when you can order your next FastPass</b>.
 
 # Ride Recognition Editing
-In Disney World, magic bands are given to each guest so an RFID signal is emitted wherever they go.  This allowes Disney World to do some cool stuff including creating videos of a guest riding a roller coaster by knowing what car they were in.  However, Disneyland does not provide magic bands and, therefore, has no system to create these videos (I imagine the magic bands are too expensive).  <b>Ride recognition seeks to create edited video of a guest riding a roller coaster without introducing any expensive hardware</b>.
+In Disney World, magic bands are given to each guest so an RFID signal is emitted wherever they go.  This allows Disney World to do some cool stuff including creating videos of a guest riding a roller coaster by knowing what car they were in.  However, Disneyland does not provide magic bands and, therefore, has no system to create these videos (I imagine the magic bands are too expensive).  <b>Ride recognition seeks to create edited video of a guest riding a roller coaster without introducing any expensive hardware</b>.
 <br />
 <br />
 Ride Recognition uses <b>acceleration</b> to identity exactly which and what part of the ride a guest is on.  This information is then used to edit any videos taken by the guest during this time with <i>FFmpeg</i>.  Below you can see the first Ride Recognition Edit test.
